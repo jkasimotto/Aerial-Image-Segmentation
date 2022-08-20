@@ -50,3 +50,6 @@ Thumbs.db
 
 # Anything beginning with a '.' character
 .*
+
+# Ignore local datasets
+local_data/
