@@ -53,3 +53,6 @@ Thumbs.db
 
 # Ignore local datasets
 local_data/
+
+# Python virtual environment
+venv/
