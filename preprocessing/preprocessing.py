@@ -4,6 +4,7 @@ import os
 from tqdm import tqdm
 from PIL import Image
 import argparse
+import math
 
 
 def extract_plane_colors(xml_file: str):
@@ -42,16 +43,31 @@ def create_mask(image, colors):
 
 
 def tile_img(img, tile_size=512):
-    rows, cols = img.height // tile_size, img.width // tile_size
-    resized_width = cols * tile_size
-    resized_height = rows * tile_size
-    resized = img.resize((resized_width, resized_height))
+    rows, cols = math.ceil(img.height / tile_size), math.ceil(img.width / tile_size)
+    total_overlap_x = tile_size * cols - img.width
+    total_overlap_y = tile_size * rows - img.height
+    min_overlap_x = math.ceil(total_overlap_x / (cols - 1))
+    min_overlap_y = math.ceil(total_overlap_y / (rows - 1))
+    remainder_x = total_overlap_x % (cols - 1)
+    if remainder_x != 0:
+        remainder_x = (cols - 1) - remainder_x
+    remainder_y = total_overlap_y % (rows - 1)
+    if remainder_y != 0:
+        remainder_y = (rows - 1) - remainder_y
+    overlap_x = ([min_overlap_x] * (cols - 2))
+    overlap_x.append(min_overlap_x - remainder_x)
+    overlap_x.insert(0, 0)
+    overlap_y = ([min_overlap_y] * (rows - 2))
+    overlap_y.append(min_overlap_y - remainder_y)
+    overlap_y.insert(0, 0)
+
     tiles = []
     for i in range(rows):
         for j in range(cols):
-            start_x, start_y = j * tile_size, i * tile_size
-            tile = resized.crop((start_x, start_y, start_x + tile_size, start_y + tile_size))
+            start_x, start_y = j * tile_size - sum(overlap_x[:j+1]), i * tile_size - sum(overlap_y[:i+1])
+            tile = img.crop((start_x, start_y, start_x + tile_size, start_y + tile_size))
             tiles.append(tile)
+
     return tiles
 
 
@@ -89,6 +105,8 @@ if __name__ == '__main__':
         full_mask = Image.open(mask_file)
         new_mask = create_mask(full_mask, plane_colors)
         og_img = Image.open(img_file)
+
+        tile_img(og_img, tile_size=args.tile_size)
 
         # remove blank tiles
         img_tiles, mask_tiles = filter_tiles(tile_img(og_img, tile_size=args.tile_size),
