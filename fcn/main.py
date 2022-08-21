@@ -1,5 +1,6 @@
 import ssl
 import torch
+import matplotlib.pyplot as plt
 from torchvision.models.segmentation import fcn_resnet50
 from torch.utils.data import DataLoader
 from torch import nn
@@ -13,7 +14,10 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()}')
 
-    # Define hyper parameters
+    # ----------------------
+    # DEFINE HYPER PARAMETERS
+    # ----------------------
+    
     HYPER_PARAMS = {
         'NUM_CLASSES': 2,
         'BATCH_SIZE': 2,
@@ -22,20 +26,31 @@ if __name__ == "__main__":
         'EPOCHS': 1,
     }
 
-    # Create the dataset
+    # ----------------------
+    # CREATE DATASET
+    # ----------------------
+
     img_dir = 'images_tiled'
     mask_dir = 'masks_tiled'
     dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir)
     train_loader = DataLoader(dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2)
 
-    # Define model
+    # ----------------------
+    # DEFINE MODEL
+    # ----------------------
+
     model = fcn_resnet50(num_classes=HYPER_PARAMS['NUM_CLASSES']).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
     loss_fn = nn.BCEWithLogitsLoss()
 
-    # Training loop
+    # ----------------------
+    # TRAINING LOOP
+    # ----------------------
+
     model.train()
     print_every = 5
+    # Data to graph average loss
+    avgLossList = []
     for epoch in range(HYPER_PARAMS['EPOCHS']):
         running_loss = 0
         for batch, (images, labels) in enumerate(train_loader):
@@ -52,3 +67,7 @@ if __name__ == "__main__":
                     f"Epoch [{epoch + 1}/{HYPER_PARAMS['EPOCHS']}], Step [{batch + 1}/{len(train_loader)}] Loss: {loss.item():.4f}")
 
         print(f"Epochs [{epoch + 1}/{HYPER_PARAMS['EPOCHS']}], Avg Loss: {running_loss / len(train_loader):.4f}")
+        avgLossList.append(running_loss / len(train_loader))
+    
+    plt.plot(list(range(1, len(avgLossList) + 1)), avgLossList)
+    plt.show()
