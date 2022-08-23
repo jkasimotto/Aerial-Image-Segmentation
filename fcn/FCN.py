@@ -1,14 +1,19 @@
 import torch
-from torchmetrics.functional import jaccard_index
+from torchmetrics.functional import jaccard_index, dice
 from plot_helper import *
 from torchvision.models.segmentation import fcn_resnet50
 from torch.utils.data import DataLoader
 from torch import nn
 from dataset import PlanesDataset
 import numpy as np
+from tqdm import tqdm
 
 
 def train(model, criterion, optimizer, dataloader, device, epochs=1, print_every=10):
+    print("\n==================")
+    print("| Training Model |")
+    print("==================\n")
+
     avg_loss_list = []
     model.train()
     for epoch in range(epochs):
@@ -35,18 +40,28 @@ def train(model, criterion, optimizer, dataloader, device, epochs=1, print_every
 
 
 def test(model, dataloader, device, num_classes):
-    ious = list()
+    print("\n=================")
+    print("| Testing Model |")
+    print("=================\n")
+
+    ious, dice_scores = list(), list()
     model.eval()
     with torch.inference_mode():
-        for images, labels in dataloader:
+        for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
             prediction = model(images)['out']
-            _prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
+            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
             labels = labels.argmax(dim=1)  # (batch_size, w, h)
-            iou = jaccard_index(_prediction, labels, num_classes=num_classes).item()
-            ious.append(iou)
+            iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
+            dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
+            ious.append(iou), dice_scores.append(dice_score)
 
-    print(f'mIoU: {np.mean(ious) * 100:.3f}%')
+    print("\n=================")
+    print("| Model Results |")
+    print("-----------------")
+    print(f'| mIoU: {np.mean(ious) * 100:.3f}%  |')
+    print(f'| dice: {np.mean(dice_scores) * 100:.3f}%  |')
+    print("=================\n")
 
 
 def main():
