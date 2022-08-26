@@ -5,6 +5,7 @@ from botocore.config import Config
 import argparse
 import os
 from tqdm import tqdm
+from pathlib import Path
 
 
 def main():
@@ -12,7 +13,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output-path",
-                        help="location to where synthetic data will be stored", default=os.path.expanduser('~'))
+                        help="location to where synthetic data will be stored", default=Path.home())
     parser.add_argument("-n", "--limit", help="number of images to download", type=int, default=10)
     parser.add_argument("-a", "--all", help="download all the files", action='store_true')
     args = parser.parse_args()
