@@ -1,7 +1,7 @@
 import torch
 from torchmetrics.functional import jaccard_index, dice
 from plot_helper import *
-from torchvision.models.segmentation import fcn_resnet50
+from torchvision.models.segmentation import fcn_resnet101
 from torch.utils.data import DataLoader
 from torch import nn
 from dataset import PlanesDataset
@@ -102,7 +102,7 @@ def main():
     # DEFINE MODEL
     # ----------------------
 
-    model = fcn_resnet50(num_classes=HYPER_PARAMS['NUM_CLASSES']).to(device)
+    model = fcn_resnet101(num_classes=HYPER_PARAMS['NUM_CLASSES']).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
     loss_fn = nn.BCEWithLogitsLoss()
 
