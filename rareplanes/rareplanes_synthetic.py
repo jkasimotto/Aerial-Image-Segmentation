@@ -12,8 +12,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output-path",
-                        help="location to where synthetic data will be stored",
-                        default="~/")
+                        help="location to where synthetic data will be stored", default=os.path.expanduser('~'))
     parser.add_argument("-n", "--limit", help="number of images to download", type=int, default=10)
     parser.add_argument("-a", "--all", help="download all the files", action='store_true')
     args = parser.parse_args()
@@ -51,7 +50,7 @@ def main():
 
             files = [image_file, mask_file, xml_file]
             for f in files:
-                directory_path = f.rsplit('/', 1)[0]
+                directory_path = os.path.join(args.output_path, f.rsplit('/', 1)[0])
                 os.makedirs(directory_path, exist_ok=True)
 
             s3.download_file(bucket_name, image_file, os.path.join(args.output_path, image_file))
