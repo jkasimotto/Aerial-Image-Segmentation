@@ -2,6 +2,7 @@ import ssl
 import torch
 import matplotlib.pyplot as plt
 from torchvision.models.segmentation import fcn_resnet50
+from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch import nn
 from dataset import PlanesDataset
@@ -23,7 +24,7 @@ if __name__ == "__main__":
         'BATCH_SIZE': 5,
         'NUM_WORKERS': 2,
         'LR': 0.001,
-        'EPOCHS': 30,
+        'EPOCHS': 1,
     }
 
     # ----------------------
@@ -32,7 +33,10 @@ if __name__ == "__main__":
 
     img_dir = 'images_tiled'
     mask_dir = 'masks_tiled'
-    dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir)
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+
+    dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir, transform = transform)
     train_loader = DataLoader(dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2)
 
     # ----------------------
@@ -59,6 +63,7 @@ if __name__ == "__main__":
             prediction = model(images)['out']
 
             # print first and second layer
+            # print(prediction[0][0])
             # plt.imshow(prediction[0][0].cpu().detach().numpy())
             # plt.show()
             # plt.imshow(prediction[0][1].cpu().detach().numpy())
