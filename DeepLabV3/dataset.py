@@ -31,4 +31,10 @@ class PlanesDataset(Dataset):
         masks = mask == color_ids[:, None, None]
         masks = torch.as_tensor(masks, dtype=torch.float32)
 
-        return self.as_tensor(image), masks
+        # Transform
+        if self.transform:
+            image = self.transform(image)
+        else:
+            image = self.as_tensor(image)
+
+        return image, masks
