@@ -1,6 +1,8 @@
 numpy==1.23.0
-torch==1.12.1+cu116
-torchvision==0.13.1+cu116
+--extra-index-url https://download.pytorch.org/whl/cu116
+torch==1.12.1
+--extra-index-url https://download.pytorch.org/whl/cu116
+torchvision==0.13.1
 Pillow==9.2.0
 tqdm==4.64.0
 matplotlib==3.5.3

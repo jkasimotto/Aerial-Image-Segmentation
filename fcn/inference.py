@@ -9,11 +9,11 @@ import torchvision.transforms.functional as f
 import matplotlib.pyplot as plt
 
 
-def show(imgs):
-    if not isinstance(imgs, list):
-        imgs = [imgs]
-    fig, axs = plt.subplots(ncols=len(imgs), squeeze=False)
-    for i, img in enumerate(imgs):
+def show(images):
+    if not isinstance(images, list):
+        images = [images]
+    fig, axs = plt.subplots(ncols=len(images), squeeze=False)
+    for i, img in enumerate(images):
         img = img.detach()
         img = f.to_pil_image(img)
         axs[0, i].imshow(np.asarray(img))
@@ -25,7 +25,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("model", help="checkpoint file for pretrained model")
     parser.add_argument("image_dir", help="path to directory containing images to run through the model")
+    parser.add_argument("-i", "--index", type=int)
     args = parser.parse_args()
+
+    start, end = 0, args.index
+    if args.index is not None:
+        start = args.index - 1
+        if args.index == 0:
+            start, end = 0, 1
 
     model = torch.load(args.model)
 
@@ -38,15 +45,15 @@ def main():
                 child.running_mean = None
                 child.running_var = None
 
+    model.eval()
     masked_images = []
-    for filename in os.listdir(args.image_dir):
+    for filename in os.listdir(args.image_dir)[start: end]:
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
         image = read_image(img_path, mode=ImageReadMode.RGB)
         image = image.float().unsqueeze(0)
 
         # Get mask prediction for model
-        model.eval()
         with torch.inference_mode():
             output = model(image)['out']
             output = output.softmax(dim=1).argmax(dim=1) > 0
