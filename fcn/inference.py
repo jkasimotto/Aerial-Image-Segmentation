@@ -45,6 +45,7 @@ def main():
                 child.running_mean = None
                 child.running_var = None
 
+    model.eval()
     masked_images = []
     for filename in os.listdir(args.image_dir)[start: end]:
         # Get image and convert to required format
@@ -53,7 +54,6 @@ def main():
         image = image.float().unsqueeze(0)
 
         # Get mask prediction for model
-        model.eval()
         with torch.inference_mode():
             output = model(image)['out']
             output = output.softmax(dim=1).argmax(dim=1) > 0
