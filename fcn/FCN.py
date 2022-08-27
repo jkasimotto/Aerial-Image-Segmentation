@@ -78,7 +78,7 @@ def main():
 
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'GPU avaliable: {torch.cuda.is_available()}')
+    print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
     # ----------------------
     # DEFINE HYPER PARAMETERS
@@ -86,10 +86,10 @@ def main():
 
     HYPER_PARAMS = {
         'NUM_CLASSES': 2,
-        'BATCH_SIZE': 5,
+        'BATCH_SIZE': 10,
         'NUM_WORKERS': 2,
         'LR': 0.001,
-        'EPOCHS': 2,
+        'EPOCHS': 5,
     }
 
     # ----------------------
@@ -110,7 +110,8 @@ def main():
     # DEFINE MODEL
     # ----------------------
 
-    model = fcn_resnet101(num_classes=HYPER_PARAMS['NUM_CLASSES']).to(device)
+    device_ids = [i for i in range(torch.cuda.device_count())]
+    model = nn.DataParallel(fcn_resnet101(num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
     loss_fn = nn.BCEWithLogitsLoss()
 
@@ -120,7 +121,7 @@ def main():
           dataloader=train_loader,
           device=device,
           epochs=HYPER_PARAMS['EPOCHS'],
-          print_every=50)
+          print_every=30)
 
     test(model=model,
          dataloader=test_loader,
