@@ -1,6 +1,6 @@
 import torch
 from torchmetrics.functional import jaccard_index, dice
-from plot_helper import *
+from utils import *
 from torchvision.models.segmentation import fcn_resnet101
 from torch.utils.data import DataLoader
 from torch import nn
@@ -86,10 +86,10 @@ def main():
 
     HYPER_PARAMS = {
         'NUM_CLASSES': 2,
-        'BATCH_SIZE': 10,
+        'BATCH_SIZE': 16,
         'NUM_WORKERS': 2,
         'LR': 0.001,
-        'EPOCHS': 5,
+        'EPOCHS': 15,
     }
 
     # ----------------------
@@ -122,6 +122,8 @@ def main():
           device=device,
           epochs=HYPER_PARAMS['EPOCHS'],
           print_every=30)
+
+    save_model(model, './checkpoints/fcn.pt')
 
     test(model=model,
          dataloader=test_loader,

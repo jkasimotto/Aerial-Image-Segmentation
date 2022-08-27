@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import torch
 
 
 def plot_pred(prediction):
@@ -15,3 +16,8 @@ def plot_loss(losses):
     plt.xlabel('Epoch')
     plt.xticks(x)
     plt.show()
+
+
+def save_model(model, path):
+    torch.save(model, path)
+    print(f"\nModel saved to {path}")
