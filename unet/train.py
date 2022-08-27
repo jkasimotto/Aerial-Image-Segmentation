@@ -1,3 +1,4 @@
+import time
 import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
@@ -22,33 +23,54 @@ IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 PIN_MEMORY = True
 LOAD_MODEL = False
-TRAIN_IMG_DIR = "local_data/synthetic/train/images_tiled"
-TRAIN_MASK_DIR = "local_data/synthetic/train/masks_tiled"
-VAL_IMG_DIR = "local_data/synthetic/val/images_tiled"
-VAL_MASK_DIR = "local_data/synthetic/val/masks_tiled"
+
+DIR = "/home/julianotto/workspace/comp3888_w08_02/"
+TRAIN_IMG_DIR = DIR + "local/data/synthetic/train/images_tiled"
+TRAIN_MASK_DIR = DIR + "local/data/synthetic/train/masks_tiled"
+VAL_IMG_DIR = DIR + "local/data/synthetic/val/images_tiled"
+VAL_MASK_DIR = DIR + "local/data/synthetic/val/masks_tiled"
 
 
-def train_fn(loader, model, optimizer, loss_fn, scaler):
-    loop = tqdm(loader)
+def train(model, criterion, optimizer, dataloader, scaler, epochs=1):
+    print("\n==================")
+    print("| Training Model |")
+    print("==================\n")
 
-    for batch_idx, (data,targets) in enumerate(loop):
-        data = data.to(device=DEVICE)
-        targets = targets.float().unsqueeze(1).to(device=DEVICE)
-
-        # forward
-        with torch.cuda.amp.autocast():
-            predictions = model(data)
-            loss = loss_fn(predictions,targets)
-
-        # backward
-        optimizer.zero_grad()
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
-
-        # update tqdm
-        loop.set_postfix(loss=loss.item())
-
+    avg_loss_list = []
+    model.train()
+    start = time.time()
+    for epoch in range(epochs):
+        running_loss = 0
+        for batch, (images, labels) in enumerate(dataloader):
+            images = images.to(device=DEVICE)
+            labels = labels.float().unsqueeze(1).to(device=DEVICE)
+            # forward
+            with torch.cuda.amp.autocast(): # TODO: What does this do?
+                predictions = model(images)
+                loss = criterion(predictions, labels)
+            # backward
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            running_loss += loss.item()
+            # Print batch messages
+            if (batch + 1) % print_every == 0:
+                print(
+                    f"Epoch [{epoch + 1}/{epochs}], Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+        # Print epoch messages
+        print(f"Epochs [{epoch + 1}/{epochs}], Avg Loss: {running_loss / len(dataloader):.4f}")
+        avg_loss_list.append(running_loss / len(dataloader))
+        # Save checkpoint each epoch.
+        checkpoint = {
+            "state_dict": model.state_dict(),
+            "optimizer": optimizer.state_dict()
+        }
+        save_checkpoint(checkpoint)
+    # Finish training
+    end = time.time()
+    print(f"\nTraining took: {end - start:.2f}s")
+    return model
 
 def main():
     train_transform = A.Compose(
@@ -79,7 +101,7 @@ def main():
     )
 
     model = UNET(in_channels=3, out_channels=1).to(DEVICE)
-    loss_fn = nn.BCEWithLogitsLoss() # binary cross entropy loss
+    criterion = nn.BCEWithLogitsLoss() # binary cross entropy loss
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(
@@ -95,23 +117,10 @@ def main():
     )
 
     scaler = torch.cuda.amp.GradScaler()
-    for epoch in range(NUM_EPOCHS):
-        train_fn(train_loader, model, optimizer, loss_fn, scaler)
-
-        #save model
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer": optimizer.state_dict()
-        }
-        save_checkpoint(checkpoint)
-
-        # check accuracy
-        test(model, val_loader, device=DEVICE, num_classes=2)
-
-        # print examples
-        save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=DEVICE
-        )
+    train(model, criterion, optimizer, train_loader, scaler, NUM_EPOCHS)
+    save_predictions_as_imgs(
+        val_loader, model, folder="saved_images/", device=DEVICE
+    )
 
 # Do this so on Windows there are no issues when using NUM_WORKERS
 if __name__ == "__main__":
