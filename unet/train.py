@@ -24,6 +24,9 @@ IMAGE_WIDTH = 512
 PIN_MEMORY = True
 LOAD_MODEL = False
 
+# 1.  Directories are different
+# 2. Can train on C
+
 DIR = "/home/julianotto/workspace/comp3888_w08_02/"
 TRAIN_IMG_DIR = DIR + "local/data/synthetic/train/images_tiled"
 TRAIN_MASK_DIR = DIR + "local/data/synthetic/train/masks_tiled"
@@ -31,7 +34,7 @@ VAL_IMG_DIR = DIR + "local/data/synthetic/val/images_tiled"
 VAL_MASK_DIR = DIR + "local/data/synthetic/val/masks_tiled"
 
 
-def train(model, criterion, optimizer, dataloader, scaler, epochs=1):
+def train(model, criterion, optimizer, dataloader, scaler, epochs=1, print_every=10):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -43,15 +46,15 @@ def train(model, criterion, optimizer, dataloader, scaler, epochs=1):
         running_loss = 0
         for batch, (images, labels) in enumerate(dataloader):
             images = images.to(device=DEVICE)
-            labels = labels.float().unsqueeze(1).to(device=DEVICE)
+            labels = labels.float().unsqueeze(1).to(device=DEVICE) # Add a channel dimension
             # forward
-            with torch.cuda.amp.autocast(): # TODO: What does this do?
+            with torch.cuda.amp.autocast(): # Allows mixed precision operations for forward pass.
                 predictions = model(images)
                 loss = criterion(predictions, labels)
             # backward
             optimizer.zero_grad()
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
+            scaler.scale(loss).backward() # Updates mixed precision weights
+            scaler.step(optimizer) # 
             scaler.update()
             running_loss += loss.item()
             # Print batch messages
@@ -73,35 +76,29 @@ def train(model, criterion, optimizer, dataloader, scaler, epochs=1):
     return model
 
 def main():
-    train_transform = A.Compose(
-        [
-            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
-            A.Rotate(limit=35, p=1),
-            A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.1),
-            A.Normalize(
-                mean=[0.0,0.0,0.0],
-                std=[1.0,1.0,1.0],
-                max_pixel_value=255.0,
-            ),
-            ToTensorV2(),
-        ]
-    )
+    train_transforms = A.Compose([
+        A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+        A.Rotate(limit=35, p=1),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.1),
+        A.Normalize(
+            mean=[0.0,0.0,0.0],
+            std=[1.0,1.0,1.0],
+            max_pixel_value=255.0,
+        ),
+        ToTensorV2()])
 
-    val_transforms = A.Compose(
-        [
-            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
-            A.Normalize(
-                mean=[0.0,0.0,0.0],
-                std=[1.0,1.0,1.0],
-                max_pixel_value=255.0,
-            ),
-            ToTensorV2(),
-        ]
-    )
+    val_transforms = A.Compose([
+        A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+        A.Normalize(
+            mean=[0.0,0.0,0.0],
+            std=[1.0,1.0,1.0],
+            max_pixel_value=255.0,
+        ),
+        ToTensorV2()])
 
     model = UNET(in_channels=3, out_channels=1).to(DEVICE)
-    criterion = nn.BCEWithLogitsLoss() # binary cross entropy loss
+    criterion = nn.BCEWithLogitsLoss() 
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(
@@ -110,12 +107,15 @@ def main():
         VAL_IMG_DIR,
         VAL_MASK_DIR,
         BATCH_SIZE,
-        train_transform,
+        train_transforms,
         val_transforms,
         NUM_WORKERS,
         PIN_MEMORY
     )
 
+    # If the forward pass of an operation has float16 inputs, small gradients may not be 
+    # representable in float16 and will 'underflow' to 0. Gradient Scaling prevents this.
+    # https://pytorch.org/docs/stable/amp.html#gradient-scaling
     scaler = torch.cuda.amp.GradScaler()
     train(model, criterion, optimizer, train_loader, scaler, NUM_EPOCHS)
     save_predictions_as_imgs(

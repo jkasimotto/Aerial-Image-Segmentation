@@ -15,7 +15,7 @@ class DoubleConv(nn.Module):
             # Bias is set to false to use BatchNorm afterwards.
             nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True), 
 
             # Repeat the steps but set in_channels=out_channels to allow for the composition.
             nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
@@ -25,6 +25,10 @@ class DoubleConv(nn.Module):
     
     def forward(self, x):
         return self.conv(x)
+
+
+
+
 
 class UNET(nn.Module):
     def __init__(
@@ -37,6 +41,7 @@ class UNET(nn.Module):
         self.downs = nn.ModuleList() # ModuleList is required for using model.eval() model.train() etc
         self.ups = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
 
         # Create the down part of UNET.
         for feature in features:
