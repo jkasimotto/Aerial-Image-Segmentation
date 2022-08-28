@@ -1,5 +1,4 @@
 import torch
-from torch import nn
 from torchvision.io import read_image, ImageReadMode
 from torchvision.utils import draw_segmentation_masks, make_grid
 import argparse
@@ -36,27 +35,22 @@ def main():
 
     model = torch.load(args.model)
 
-    # Needed for eval to work properly for some reason
-    # Batch norm layers were doing something funny
-    for m in model.modules():
-        for child in m.children():
-            if type(child) == nn.BatchNorm2d:
-                child.track_running_stats = False
-                child.running_mean = None
-                child.running_var = None
+    normalisation_factor = 1 / 255
 
     model.eval()
     masked_images = []
     for filename in os.listdir(args.image_dir)[start: end]:
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
-        image = read_image(img_path, mode=ImageReadMode.RGB)
+        image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
         image = image.float().unsqueeze(0)
 
         # Get mask prediction for model
         with torch.inference_mode():
             output = model(image)['out']
             output = output.softmax(dim=1).argmax(dim=1) > 0
+
+        image = image * (normalisation_factor ** -1)
 
         # Draw segmentation mask on top of image
         image = image.squeeze(0).type(torch.uint8)
