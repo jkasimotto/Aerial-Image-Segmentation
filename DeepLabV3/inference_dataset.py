@@ -23,8 +23,11 @@ class InferenceDataset(Dataset):
 
         # Transform
         if self.transform:
-            image = self.transform(image)
-        else:
+            normalised_image = self.transform(image)
             image = self.as_tensor(image)
 
-        return image
+        else:
+            normalised_image = self.as_tensor(image)
+            image = self.as_tensor(image)
+
+        return normalised_image, image
