@@ -50,7 +50,7 @@ def train(model, criterion, optimizer, dataloader, scaler, device, epochs=1, pri
             "state_dict": model.state_dict(),
             "optimizer": optimizer.state_dict()
         }
-        save_checkpoint(checkpoint, filename=f"epoch-{epoch}-checkpoint.pth")
+        save_checkpoint(checkpoint, filename=f"./checkpoints/epoch-{epoch}-checkpoint.pth")
     # Finish training
     end = time.time()
     print(f"\nTraining took: {end - start:.2f}s")
@@ -139,7 +139,7 @@ def main():
           print_every=30)
 
     save_predictions_as_imgs(
-        val_loader, model, folder="saved_images/", device=device
+        val_loader, model, folder="./saved_images/", device=device
     )
 
 
