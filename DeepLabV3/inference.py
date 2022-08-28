@@ -2,6 +2,7 @@ from torchvision.utils import draw_segmentation_masks, make_grid
 import argparse
 import numpy as np
 import torchvision.transforms.functional as f
+from torchvision import transforms
 from torch.utils.data import DataLoader
 from inference_dataset import InferenceDataset
 from utils import *
@@ -29,12 +30,13 @@ def inference(model, dataloader, device, image_idx):
 
     model.eval()
     with torch.inference_mode():
-        for idx, images in enumerate(dataloader):
+        for idx, (normalised_image, images) in enumerate(dataloader):
             if idx >= image_idx[0] and idx < image_idx[1]:
-                images = images.to(device)
+
+                normalised_image = normalised_image.to(device)
 
                 # Do Prediction
-                prediction = model(images)['out']
+                prediction = model(normalised_image)['out']
                 prediction = prediction.softmax(dim=1).argmax(dim=1) > 0
 
                 # Squeeze Image
@@ -59,9 +61,12 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
-    image_idx = [20,21]
+    image_idx = [49,50]
 
-    inference_dataset = InferenceDataset(img_dir=args.image_dir)
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    inference_dataset = InferenceDataset(img_dir=args.image_dir, transform=transform)
     inference_loader = DataLoader(inference_dataset, batch_size=1)
 
     model = torch.load(args.model)
