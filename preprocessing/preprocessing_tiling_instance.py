@@ -73,18 +73,17 @@ def tile_img(img, tile_size=512):
     return tiles
 
 
-def filter_tiles(img_tiles, masks_tiles):
-    filtered_img_tiles = set()
+def filter_mask_tiles(masks_tiles):
     filtered_masks_tiles = []
-    for i in range(len(masks_tiles)): # for each full sized mask
-        for j in range(len(masks_tiles[i])): # for each tile in the full sized mask
-            img_arr = np.array(masks_tiles[i][j])
+    for i in range(len(masks_tiles[0])): # for each tile
+        filtered_masks_tiles.append([])
+        for j in range(len(masks_tiles)): # for each mask
+            img_arr = np.array(masks_tiles[j][i])
             n_white_pix = np.sum(img_arr > 0)
             if n_white_pix > 0:
-                filtered_img_tiles.add(img_tiles[j])
-                filtered_mask_tiles[i].append(masks_tiles[i][j])
+                filtered_masks_tiles[i].append(masks_tiles[j][i])
 
-    return list(filtered_img_tiles), filtered_masks_tiles
+    return filtered_masks_tiles
 
 
 def process_files(args):
@@ -117,17 +116,16 @@ def process_files(args):
             new_masks_tiles.append(tile_img(mask, tile_size=tile_size))
 
         # remove blank tiles
-        #filtered_img_tiles, filtered_masks_tiles = filter_tiles(og_img_tiles, new_masks_tiles)
-        filtered_img_tiles = og_img_tiles
-        filtered_masks_tiles = new_masks_tiles
+        filtered_masks_tiles = filter_mask_tiles(new_masks_tiles)
 
         # save tiles to file
-        for i, img_tile in enumerate(filtered_img_tiles):
+        for i, img_tile in enumerate(og_img_tiles):
             folder_path = os.path.join(output_path, filename.replace('.xml', f'_tile_{i}'))
-            os.makedirs(folder_path, exist_ok=True)
-            img_tile.save(os.path.join(folder_path, 'image.png'))
-            for j, mask in enumerate(filtered_masks_tiles):
-                mask[i].save(os.path.join(folder_path, f'mask_{j}.png'))
+            if any(filtered_masks_tiles[i]):
+                os.makedirs(os.path.join(folder_path), exist_ok=True)
+                img_tile.save(os.path.join(folder_path, 'image.png'))
+                for j, mask_tile in enumerate(filtered_masks_tiles[i]):
+                    mask_tile.save(os.path.join(folder_path, f'mask_{j}.png'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
