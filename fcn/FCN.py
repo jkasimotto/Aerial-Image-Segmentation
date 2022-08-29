@@ -72,11 +72,28 @@ def test(model, dataloader, device, num_classes):
     print("=================\n")
 
 
-def main():
+def command_line_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("data_dir", help="path to directory containing test and train images")
-    parser.add_argument("-c", "--checkpoint")
+    parser.add_argument("data_dir",
+                        help="path to directory containing test and train images")
+    parser.add_argument("-c", "--checkpoint",
+                        help="filename for model checkpoint to be saved as")
+    parser.add_argument("-b", '--batch-size', default=16, type=int,
+                        help="dataloader batch size")
+    parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
+                        help="learning rate to be applied to the model")
+    parser.add_argument("-e", "--epochs", default=1, type=int,
+                        help="number of epochs to train the model for")
+    parser.add_argument("-w", "--workers", default=2, type=int,
+                        help="number of workers used in the dataloader")
+    parser.add_argument("-n", "--num-classes", default=2, type=int,
+                        help="number of classes for semantic segmentation")
     args = parser.parse_args()
+    return args
+
+
+def main():
+    args = command_line_args()
 
     # Needed to download model from internet
     # ssl._create_default_https_context = ssl._create_unverified_context
@@ -90,11 +107,11 @@ def main():
     # ----------------------
 
     HYPER_PARAMS = {
-        'NUM_CLASSES': 2,
-        'BATCH_SIZE': 16,
-        'NUM_WORKERS': 2,
-        'LR': 0.001,
-        'EPOCHS': 1,
+        'NUM_CLASSES': args.num_classes,
+        'BATCH_SIZE': args.batch_size,
+        'NUM_WORKERS': args.workers,
+        'LR': args.learning_rate,
+        'EPOCHS': args.epochs,
     }
 
     # ----------------------
