@@ -5,11 +5,46 @@ This model is based on the paper
 ---
 
 ## Training The Model
+
+### Data Structure
+The training and test images need to be structured in a specific way for the model run correctly.
+The folder structure needs to be as follows:
+```text
+path/to/dir
+    |--- train
+        |--- images_tiled  # contains training images
+        |--- masks_tiled   # contains training labels
+    |--- test
+        |--- images_tiled  # contains test images
+        |--- masks_tiled   # contains test labels
+```
+**NOTE**: directory names must be the same as outlined above
+
+### Usage
 ```commandline
-python FCN.py
+usage: FCN.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir
+
+positional arguments:
+  data_dir              path to directory containing test and train images
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CHECKPOINT, --checkpoint CHECKPOINT
+                        filename for model checkpoint to be saved as
+  -b BATCH_SIZE, --batch-size BATCH_SIZE
+                        dataloader batch size
+  -lr LEARNING_RATE, --learning-rate LEARNING_RATE
+                        learning rate to be applied to the model
+  -e EPOCHS, --epochs EPOCHS
+                        number of epochs to train the model for
+  -w WORKERS, --workers WORKERS
+                        number of workers used in the dataloader
+  -n NUM_CLASSES, --num-classes NUM_CLASSES
+                        number of classes for semantic segmentation
+
 ```
 ### Checkpoints
-One training is completed the model with be saved to a checkpoint file in the directory `/fcn/checkpoints`.
+If a checkpoint filename is provided the model with be saved in the directory `/fcn/checkpoints`.
 
 ---
 
