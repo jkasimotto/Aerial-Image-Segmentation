@@ -1,4 +1,3 @@
-import torch
 from torchmetrics.functional import jaccard_index, dice
 from utils import *
 from torchvision.models.segmentation import fcn_resnet101
@@ -8,6 +7,7 @@ from dataset import PlanesDataset
 import numpy as np
 from tqdm import tqdm
 import time
+import argparse
 
 
 def train(model, criterion, optimizer, dataloader, device, epochs=1, print_every=10):
@@ -72,7 +72,29 @@ def test(model, dataloader, device, num_classes):
     print("=================\n")
 
 
+def command_line_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_dir",
+                        help="path to directory containing test and train images")
+    parser.add_argument("-c", "--checkpoint",
+                        help="filename for model checkpoint to be saved as")
+    parser.add_argument("-b", '--batch-size', default=16, type=int,
+                        help="dataloader batch size")
+    parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
+                        help="learning rate to be applied to the model")
+    parser.add_argument("-e", "--epochs", default=1, type=int,
+                        help="number of epochs to train the model for")
+    parser.add_argument("-w", "--workers", default=2, type=int,
+                        help="number of workers used in the dataloader")
+    parser.add_argument("-n", "--num-classes", default=2, type=int,
+                        help="number of classes for semantic segmentation")
+    args = parser.parse_args()
+    return args
+
+
 def main():
+    args = command_line_args()
+
     # Needed to download model from internet
     # ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -85,21 +107,21 @@ def main():
     # ----------------------
 
     HYPER_PARAMS = {
-        'NUM_CLASSES': 2,
-        'BATCH_SIZE': 16,
-        'NUM_WORKERS': 2,
-        'LR': 0.001,
-        'EPOCHS': 15,
+        'NUM_CLASSES': args.num_classes,
+        'BATCH_SIZE': args.batch_size,
+        'NUM_WORKERS': args.workers,
+        'LR': args.learning_rate,
+        'EPOCHS': args.epochs,
     }
 
     # ----------------------
     # CREATE DATASET
     # ----------------------
 
-    img_dir = '/home/usyd-04a/synthetic/train/images_tiled'
-    mask_dir = '/home/usyd-04a/synthetic/train/masks_tiled/'
-    test_img_dir = '/home/usyd-04a/synthetic/test/images_tiled/'
-    test_mask_dir = '/home/usyd-04a/synthetic/test/masks_tiled/'
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
     train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
@@ -123,7 +145,7 @@ def main():
           epochs=HYPER_PARAMS['EPOCHS'],
           print_every=30)
 
-    save_model(model, './checkpoints/fcn.pt')
+    save_model(model, args.checkpoint)
 
     test(model=model,
          dataloader=test_loader,
