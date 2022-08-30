@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
+import os
 
 
 def plot_pred(prediction):
@@ -18,6 +19,10 @@ def plot_loss(losses):
     plt.show()
 
 
-def save_model(model, path):
+def save_model(model, checkpoint):
+    if checkpoint is None:
+        print("\nNo checkpoint specified: model was not saved")
+        return
+    path = os.path.join('./checkpoints', checkpoint)
     torch.save(model, path)
     print(f"\nModel saved to {path}")
