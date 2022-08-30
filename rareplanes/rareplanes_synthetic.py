@@ -6,6 +6,7 @@ import argparse
 import os
 from tqdm import tqdm
 from pathlib import Path
+import math
 
 
 def main():
@@ -14,26 +15,38 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output-path",
                         help="location to where synthetic data will be stored", default=Path.home())
+    parser.add_argument("-s", "--data-split",
+                        help="ratio of training data to test data to download", default=0.8, type=float)
     parser.add_argument("-n", "--limit", help="number of images to download", type=int, default=10)
     parser.add_argument("-a", "--all", help="download all the files", action='store_true')
     args = parser.parse_args()
 
     if args.all:
-        args.limit = None
+        print("To download all the data run the following command:")
+        print(f"aws s3 cp --recursive --no-sign-request s3://rareplanes-public/synthetic/ {args.output_path}")
+        return
+
+    if args.data_split <= 0 or args.data_split > 1:
+        print("Invalid data split argument. Valid range 0 < x <= 1")
+        return
+
+    num_train_files = math.ceil(args.limit * args.data_split)
+    num_test_files = args.limit - num_train_files
 
     # Get filenames from s3 bucket
-
     bucket_name = 'rareplanes-public'
     s3 = boto3.resource('s3')
     s3.meta.client.meta.events.register('choose-signer.s3.*', disable_signing)
     bucket = s3.Bucket(bucket_name)
 
+    # Get test image filenames
     test_files = []
-    for obj in bucket.objects.filter(Prefix="synthetic/test/images/").limit(args.limit):
+    for obj in bucket.objects.filter(Prefix="synthetic/test/images/").limit(num_test_files):
         test_files.append(obj.key)
 
+    # Get train image filenames
     train_files = []
-    for obj in bucket.objects.filter(Prefix="synthetic/train/images/").limit(args.limit):
+    for obj in bucket.objects.filter(Prefix="synthetic/train/images/").limit(num_train_files):
         train_files.append(obj.key)
 
     all_files = [test_files, train_files]

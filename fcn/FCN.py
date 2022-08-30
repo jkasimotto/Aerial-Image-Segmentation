@@ -2,6 +2,7 @@ from torchmetrics.functional import jaccard_index, dice
 from utils import *
 from torchvision.models.segmentation import fcn_resnet101
 from torch.utils.data import DataLoader
+import torch.profiler
 from torch import nn
 from dataset import PlanesDataset
 import numpy as np
