@@ -26,7 +26,7 @@ class PlanesDataset(Dataset):
         mask = Image.open(mask_path).convert("L")
 
         mask = np.array(mask)
-        mask[mask == 255] = 1  # convert white pixels to 1
+        mask[mask > 0] = 1  # convert white pixels to 1
         color_ids = np.unique(mask)  # find all unique colors in mask
         masks = mask == color_ids[:, None, None]
         masks = torch.as_tensor(masks, dtype=torch.float32)
