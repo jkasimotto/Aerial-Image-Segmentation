@@ -34,5 +34,5 @@ A new directory created called `images_tiled` and a new directory created called
 
 
 ## Examples
-`python preprocessing_tiling.py ./synthetic/train/ -w`
+`python preprocessing_tiling.py ./synthetic/train/ -w`  
 `python preprocessing_tiling.py ./synthetic/test/ -cgw`
