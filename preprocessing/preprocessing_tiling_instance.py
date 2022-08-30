@@ -35,7 +35,7 @@ def create_mask(image, colors, is_colored, greyscale_boost):
                 if is_colored:
                     new_mask.putpixel((x, y), px_color) # preserves the planes' original colors
                 else:
-                    new_mask.putpixel((x, y), colors.index(px_color) + greyscale_boost) # greyscale planes
+                    new_mask.putpixel((x, y), colors.index(px_color) + greyscale_boost + 1) # greyscale planes
             else:
                 new_mask.putpixel((x, y), 0)
 
