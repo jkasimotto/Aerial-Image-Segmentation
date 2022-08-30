@@ -22,13 +22,20 @@ def extract_plane_colors(xml_file: str):
     return plane_colors
 
 
-def create_mask(image, colors):
-    new_mask = Image.new('RGB', image.size)
+def create_mask(image, colors, is_colored, greyscale_boost):
+    if is_colored:
+        new_mask = Image.new('RGB', image.size)
+    else:
+        new_mask = Image.new('L', image.size)
+
     for x in range(image.size[0]):
         for y in range(image.size[1]):
             px_color = image.getpixel((x, y))
             if px_color in colors:
-                new_mask.putpixel((x, y), px_color)
+                if is_colored:
+                    new_mask.putpixel((x, y), px_color) # preserves the planes' original colors
+                else:
+                    new_mask.putpixel((x, y), colors.index(px_color) + greyscale_boost) # greyscale planes
             else:
                 new_mask.putpixel((x, y), 0)
 
@@ -71,8 +78,10 @@ def process_files(args):
         end = None
 
     xml_dir = args['XML_DIR']
-    tile_size = args["TILE_SIZE"]
-    output_path = args["OUTPUT_PATH"]
+    tile_size = args['TILE_SIZE']
+    output_path = args['OUTPUT_PATH']
+    is_colored = args['IS_COLORED']
+    greyscale_boost = args['GREYSCALE_BOOST']
 
     for filename in tqdm(sorted(os.listdir(xml_dir))[start: end], desc=f"Worker {args['ID'] + 1}"):
         xml_file = os.path.join(xml_dir, filename)
@@ -81,7 +90,7 @@ def process_files(args):
 
         plane_colors = extract_plane_colors(xml_file)
         img = Image.open(img_file)
-        mask = create_mask(Image.open(mask_file), plane_colors)
+        mask = create_mask(Image.open(mask_file), plane_colors, is_colored, greyscale_boost)
 
         img_tiles = tile_img(img, tile_size=tile_size)
         mask_tiles = tile_img(mask, tile_size=tile_size)
@@ -91,8 +100,8 @@ def process_files(args):
         os.makedirs(os.path.join(output_path, 'instance_masks_tiled'), exist_ok=True)
         for i in range(len(img_tiles)):
             img_arr = np.array(mask_tiles[i])
-            n_color_pix = np.sum(img_arr > 0)
-            if n_color_pix > 0:
+            n_white_pix = np.sum(img_arr > 0)
+            if n_white_pix > 0:
                 tile_name = filename.replace('.xml', f'_tile_{i}.png')
                 img_tiles[i].save(os.path.join(output_path, 'instance_images_tiled', tile_name))
                 tile_name = filename.replace('.xml', f'_tile_{i}_mask.png')
@@ -105,6 +114,8 @@ if __name__ == '__main__':
                         help="path to synthetic train/test data directory. Needs to contain 3 dirs -> images, masks, xmls")
     parser.add_argument("-s", "--tile-size", help="dimension of tile", type=int, default=512)
     parser.add_argument("-n", "--num-workers", help="number of processes utilised", type=int, default=1)
+    parser.add_argument("-c", "--color", help="if set, masks are coloured", default=False, action='store_true')
+    parser.add_argument("-b", "--greyscale-boost", help="base alpha of greyscale masks", type=int, default=0)
     args = parser.parse_args()
 
     xml_dir = os.path.join(args.path, "xmls")
@@ -119,6 +130,8 @@ if __name__ == '__main__':
         'XML_DIR': xml_dir,
         'OUTPUT_PATH': output_path,
         'TILE_SIZE': args.tile_size,
+        'IS_COLORED': args.color,
+        'GREYSCALE_BOOST': args.greyscale_boost,
     }
 
     processes = []
