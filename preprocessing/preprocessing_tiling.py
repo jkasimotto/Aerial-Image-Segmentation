@@ -8,7 +8,7 @@ import math
 from multiprocessing import Process
 
 
-def extract_plane_colors(xml_file: str):
+def extract_plane_colors(xml_file):
     tree = ET.parse(xml_file)
     root = tree.getroot()
 
@@ -17,30 +17,31 @@ def extract_plane_colors(xml_file: str):
     for child in root.findall("object/category0[.='Airplane'].../object_mask_color_rgba"):
         channels = child.text.split(",")
         channels = [int(val) for val in channels]
-        plane_colors.append(channels)
+        plane_colors.append(tuple(channels))
 
     return plane_colors
 
 
-def is_plane_color(px, colors):
-    for color in colors:
-        if px[0] == color[0] and px[1] == color[1] and px[2] == color[2] and px[3] == color[3]:
-            return True
-    return False
-
-
-def create_mask(image, colors):
-    new_mask = Image.new('L', image.size)
+def create_mask(image, colors, mode):
+    if mode == 'color':
+        mask = Image.new('RGB', image.size)
+    else:
+        mask = Image.new('L', image.size)
 
     for x in range(image.size[0]):
         for y in range(image.size[1]):
             px_color = image.getpixel((x, y))
-            if is_plane_color(px_color, colors):
-                new_mask.putpixel((x, y), 255)
+            if px_color in colors:
+                if mode == 'color':
+                    mask.putpixel((x, y), px_color) # preserves the planes' original colors
+                elif mode == 'greyscale':
+                    mask.putpixel((x, y), colors.index(px_color) + 1) # greyscale planes
+                elif mode == 'white':
+                    mask.putpixel((x, y), 255) # white planes
             else:
-                new_mask.putpixel((x, y), 0)
+                mask.putpixel((x, y), 0)
 
-    return new_mask
+    return mask
 
 
 def tile_img(img, tile_size=512):
@@ -72,19 +73,6 @@ def tile_img(img, tile_size=512):
     return tiles
 
 
-def filter_tiles(img_tiles, mask_tiles):
-    filtered_img_tiles = []
-    filtered_mask_tiles = []
-    for i in range(len(mask_tiles)):
-        img_arr = np.array(mask_tiles[i])
-        n_white_pix = np.sum(img_arr > 0)
-        if n_white_pix > 0:
-            filtered_mask_tiles.append(mask_tiles[i])
-            filtered_img_tiles.append(img_tiles[i])
-
-    return filtered_img_tiles, filtered_mask_tiles
-
-
 def process_files(args):
     start = args['ID'] * args['FILES_PER_WORKER']
     end = start + args['FILES_PER_WORKER']
@@ -92,8 +80,11 @@ def process_files(args):
         end = None
 
     xml_dir = args['XML_DIR']
-    tile_size = args["TILE_SIZE"]
-    output_path = args["OUTPUT_PATH"]
+    tile_size = args['TILE_SIZE']
+    output_path = args['OUTPUT_PATH']
+    is_color = args['IS_COLOR']
+    is_greyscale = args['IS_GREYSCALE']
+    is_white = args['IS_WHITE']
 
     for filename in tqdm(sorted(os.listdir(xml_dir))[start: end], desc=f"Worker {args['ID'] + 1}"):
         xml_file = os.path.join(xml_dir, filename)
@@ -101,28 +92,61 @@ def process_files(args):
         img_file = os.path.join(xml_dir.replace("xmls", "images"), filename.replace('.xml', '.png'))
 
         plane_colors = extract_plane_colors(xml_file)
+        img = Image.open(img_file)
+        img_tiles = tile_img(img, tile_size=tile_size)
 
-        # full_mask = full sized rareplanes mask
-        full_mask = Image.open(mask_file)
-        new_mask = create_mask(full_mask, plane_colors)
-        og_img = Image.open(img_file)
+        # generate output masks
+        mask = Image.open(mask_file) # original mask
+        mask_tile_arr = []
+        if is_color:
+            color_mask = create_mask(mask, plane_colors, 'color')
+            color_mask_tiles = tile_img(color_mask, tile_size=tile_size)
+            mask_tile_arr.append(color_mask_tiles)
+        if is_greyscale:
+            greyscale_mask = create_mask(mask, plane_colors, 'greyscale')
+            greyscale_mask_tiles = tile_img(greyscale_mask, tile_size=tile_size)
+            mask_tile_arr.append(greyscale_mask_tiles)
+        if is_white:
+            white_mask = create_mask(mask, plane_colors, 'white')
+            white_mask_tiles = tile_img(white_mask, tile_size=tile_size)
+            mask_tile_arr.append(white_mask_tiles)
 
-        # remove blank tiles
-        img_tiles, mask_tiles = filter_tiles(tile_img(og_img, tile_size=tile_size),
-                                             tile_img(new_mask, tile_size=tile_size))
-
-        assert (len(img_tiles) == len(mask_tiles))
+        img_dir = 'images_tiled'
+        color_mask_dir = 'color_masks_tiled'
+        greyscale_mask_dir = 'greyscale_masks_tiled'
+        white_mask_dir = 'white_masks_tiled'
 
         # save tiles to file
-        os.makedirs(os.path.join(output_path, 'images_tiled'), exist_ok=True)
-        for tile in img_tiles:
-            tile_name = filename.replace('.xml', f'_tile_{img_tiles.index(tile) + 1}.png')
-            tile.save(os.path.join(output_path, 'images_tiled', tile_name))
+        os.makedirs(os.path.join(output_path, img_dir), exist_ok=True)
+        if is_color:
+            os.makedirs(os.path.join(output_path, color_mask_dir), exist_ok=True)
+        if is_greyscale:
+            os.makedirs(os.path.join(output_path, greyscale_mask_dir), exist_ok=True)
+        if is_white:
+            os.makedirs(os.path.join(output_path, white_mask_dir), exist_ok=True)
 
-        os.makedirs(os.path.join(output_path, 'masks_tiled'), exist_ok=True)
-        for tile in mask_tiles:
-            tile_name = filename.replace('.xml', f'_tile_{mask_tiles.index(tile) + 1}_mask.png')
-            tile.save(os.path.join(output_path, 'masks_tiled', tile_name))
+        for i in range(len(img_tiles)):
+            # check if no masks are generated
+            if not mask_tile_arr:
+                tile_name = filename.replace('.xml', f'_tile_{i}.png')
+                img_tiles[i].save(os.path.join(output_path, img_dir, tile_name))
+                continue
+
+            # check if mask(s) for a given tile are empty
+            img_arr = np.array(mask_tile_arr[0][i])
+            n_white_pix = np.sum(img_arr > 0)
+            if n_white_pix > 0: # if planes are present
+                tile_name = filename.replace('.xml', f'_tile_{i}.png')
+                img_tiles[i].save(os.path.join(output_path, img_dir, tile_name))
+                if is_color:
+                    tile_name = filename.replace('.xml', f'_tile_{i}_color_mask.png')
+                    color_mask_tiles[i].save(os.path.join(output_path, color_mask_dir, tile_name))
+                if is_greyscale:
+                    tile_name = filename.replace('.xml', f'_tile_{i}_greyscale_mask.png')
+                    greyscale_mask_tiles[i].save(os.path.join(output_path, greyscale_mask_dir, tile_name))
+                if is_white:
+                    tile_name = filename.replace('.xml', f'_tile_{i}_white_mask.png')
+                    white_mask_tiles[i].save(os.path.join(output_path, white_mask_dir, tile_name))
 
 
 if __name__ == '__main__':
@@ -131,10 +155,13 @@ if __name__ == '__main__':
                         help="path to synthetic train/test data directory. Needs to contain 3 dirs -> images, masks, xmls")
     parser.add_argument("-s", "--tile-size", help="dimension of tile", type=int, default=512)
     parser.add_argument("-n", "--num-workers", help="number of processes utilised", type=int, default=1)
+    parser.add_argument("-c", "--color", help="generate color preserving masks", default=False, action='store_true')
+    parser.add_argument("-g", "--greyscale", help="generate greyscale masks", default=False, action='store_true')
+    parser.add_argument("-w", "--white", help="generate all white masks", default=False, action='store_true')
     args = parser.parse_args()
 
     xml_dir = os.path.join(args.path, "xmls")
-    output_path = args.path
+    output_path = os.path.join(args.path)
 
     num_files = len(os.listdir(xml_dir))
     files_per_worker = num_files // args.num_workers
@@ -145,6 +172,9 @@ if __name__ == '__main__':
         'XML_DIR': xml_dir,
         'OUTPUT_PATH': output_path,
         'TILE_SIZE': args.tile_size,
+        'IS_COLOR': args.color,
+        'IS_GREYSCALE': args.greyscale,
+        'IS_WHITE': args.white,
     }
 
     processes = []
