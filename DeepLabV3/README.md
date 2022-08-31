@@ -40,7 +40,8 @@ optional arguments:
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
 
-```-c "test.pt" -b 16 -lr 0.001 -e 3 -w 2 -n 2 /home/usyd-04a/synthetic/
+```
+
 Example
 ```commandline
 python DeepLabV3Model.py -c "trial.pt" -b 8 -lr 0.0005 -e 25 -w 2 -n 2 /home/usyd-04a/synthetic/
@@ -74,9 +75,10 @@ optional arguments:
                         the ending index of test images to convert to mask
 
 ```
+
 Example
 ```commandline
-python inference.py ./checkpoints/deepLabV3.pt /home/usyd-04a/synthetic/test/images/ -s 20 -e 21
+python inference.py ./checkpoints/deepLabV3.pt /home/usyd-04a/synthetic/test/images/ -s 0 -e 1
 ```
 
 ### Output
