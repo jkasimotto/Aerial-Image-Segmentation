@@ -23,17 +23,6 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
     for epoch in range(epochs):
-        # model.train()
-        # running_loss = 0
-        # for batch, (images, labels) in enumerate(train_loader):
-        #     images, labels = images.to(device), labels.to(device)
-        #     prediction = model(images)['out']
-        #     loss = criterion(prediction, labels)
-        #     optimizer.zero_grad()
-        #     loss.backward()
-        #     optimizer.step()
-        #     running_loss += loss.item()
-
         print(f"[INFO] Epoch {epoch + 1}")
 
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device, print_every)
@@ -62,9 +51,10 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
 
 
 def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every):
+    print('[EPOCH TRAINING]')
     model.train()
     running_loss = 0
-    for batch, (images, labels) in enumerate(dataloader):
+    for batch, (images, labels) in enumerate(tqdm(dataloader)):
         images, labels = images.to(device), labels.to(device)
         prediction = model(images)['out']
         loss = criterion(prediction, labels)
@@ -106,15 +96,6 @@ def test(model, criterion, dataloader, device, num_classes):
     print(f"Accuracy: mIoU= {iou_acc * 100:.3f}%, dice= {dice_acc * 100:.3f}%")
 
     return test_loss, iou_acc, dice_acc
-
-    # print(f"\nTesting took: {end - start:.2f}s")
-    #
-    # print("\n=================")
-    # print("| Model Results |")
-    # print("-----------------")
-    # print(f'| mIoU: {np.mean(ious) * 100:.3f}%  |')
-    # print(f'| dice: {np.mean(dice_scores) * 100:.3f}%  |')
-    # print("=================\n")
 
 
 def command_line_args():
@@ -201,13 +182,6 @@ def main():
                  batch_size=HYPER_PARAMS['BATCH_SIZE'],
                  lr=HYPER_PARAMS['LR'],
                  filename='fnc_final_epoch.pth')
-
-    # save_model(model, args.checkpoint)
-    #
-    # test(model=model,
-    #      dataloader=test_loader,
-    #      device=device,
-    #      num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
 
 if __name__ == "__main__":
