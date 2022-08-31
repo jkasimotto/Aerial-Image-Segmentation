@@ -69,9 +69,9 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -s START_INDEX, --start_index START_INDEX
-                        the starting index of test images to mask
+                        the starting index of test images to convert to mask
   -e END_INDEX, --end_index END_INDEX
-                        the ending index of test images to mask
+                        the ending index of test images to convert to mask
 
 ```
 Example
