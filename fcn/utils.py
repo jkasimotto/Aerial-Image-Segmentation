@@ -11,8 +11,9 @@ class SaveBestModel:
     def __call__(self, current_valid_loss, epoch, model, optimizer, criterion):
         if current_valid_loss < self.best_valid_loss:
             self.best_valid_loss = current_valid_loss
-            print(f"\nBest validation loss: {self.best_valid_loss}")
-            print(f"\nSaving best model for epoch: {epoch + 1}\n")
+            print(f"Best validation loss: {self.best_valid_loss:.3f}")
+            print(f"Saving best model for epoch: {epoch + 1}")
+            os.makedirs('./checkpoints', exist_ok=True)
             torch.save({
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(),
@@ -34,6 +35,7 @@ def save_loss_plot(train_loss, test_loss, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
+    os.makedirs('./outputs', exist_ok=True)
     plt.savefig(os.path.join('./outputs', filename))
 
 
@@ -50,6 +52,7 @@ def save_acc_plot(iou_acc, dice_acc, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy')
     plt.legend()
+    os.makedirs('./outputs', exist_ok=True)
     plt.savefig(os.path.join('./outputs', filename))
 
 

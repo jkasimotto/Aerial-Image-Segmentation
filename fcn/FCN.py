@@ -34,6 +34,8 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         #     optimizer.step()
         #     running_loss += loss.item()
 
+        print(f"[INFO] Epoch {epoch + 1}")
+
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device, print_every)
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
         scheduler.step()
@@ -46,7 +48,8 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
         print(
-            f"Epochs [{epoch + 1}/{epochs}], Avg Test Loss: {train_epoch_loss:.4f}, Avg Train Loss: {val_epoch_loss}")
+            f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
+        print("---\n")
 
     end = time.time()
 
