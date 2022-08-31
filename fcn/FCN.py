@@ -19,49 +19,65 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
 
     start = time.time()
 
+    save_best_model = SaveBestModel()
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
     for epoch in range(epochs):
-        model.train()
-        running_loss = 0
-        for batch, (images, labels) in enumerate(train_loader):
-            images, labels = images.to(device), labels.to(device)
-            prediction = model(images)['out']
-            loss = criterion(prediction, labels)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
+        # model.train()
+        # running_loss = 0
+        # for batch, (images, labels) in enumerate(train_loader):
+        #     images, labels = images.to(device), labels.to(device)
+        #     prediction = model(images)['out']
+        #     loss = criterion(prediction, labels)
+        #     optimizer.zero_grad()
+        #     loss.backward()
+        #     optimizer.step()
+        #     running_loss += loss.item()
 
-            if (batch + 1) % print_every == 0:
-                print(
-                    f"Epoch [{epoch + 1}/{epochs}], Step [{batch + 1}/{len(train_loader)}] Loss: {loss.item():.4f}")
-
+        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device, print_every)
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
+        scheduler.step()
 
-        train_loss.append(running_loss / len(train_loader))
+        train_loss.append(train_epoch_loss)
         test_loss.append(val_epoch_loss)
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        scheduler.step()
+        save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
         print(
-            f"Epochs [{epoch + 1}/{epochs}], Avg Test Loss: {running_loss / len(train_loader):.4f}, Avg Train Loss: {val_epoch_loss}")
+            f"Epochs [{epoch + 1}/{epochs}], Avg Test Loss: {train_epoch_loss:.4f}, Avg Train Loss: {val_epoch_loss}")
 
     end = time.time()
+
     save_loss_plot(train_loss, test_loss, 'fcn_loss.png')
+    save_acc_plot(iou_acc, dice_acc, 'fcn_accuracy.png')
 
     print(f"\nTraining took: {end - start:.2f}s")
 
     return model
 
 
-def test(model, criterion, dataloader, device, num_classes):
-    print("\n=================")
-    print("| Testing Model |")
-    print("=================\n")
+def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every):
+    model.train()
+    running_loss = 0
+    for batch, (images, labels) in enumerate(dataloader):
+        images, labels = images.to(device), labels.to(device)
+        prediction = model(images)['out']
+        loss = criterion(prediction, labels)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item()
 
+        if (batch + 1) % print_every == 0:
+            print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+
+    return running_loss / len(dataloader)
+
+
+def test(model, criterion, dataloader, device, num_classes):
+    print("[VALIDATING]")
     ious, dice_scores = list(), list()
     model.eval()
     start = time.time()
@@ -164,16 +180,24 @@ def main():
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     loss_fn = nn.BCEWithLogitsLoss()
 
-    train(model=model,
-          criterion=loss_fn,
-          optimizer=optimizer,
-          scheduler=scheduler,
-          train_loader=train_loader,
-          test_loader=test_loader,
-          device=device,
-          epochs=HYPER_PARAMS['EPOCHS'],
-          print_every=30,
-          num_classes=HYPER_PARAMS['NUM_CLASSES'])
+    model = train(model=model,
+                  criterion=loss_fn,
+                  optimizer=optimizer,
+                  scheduler=scheduler,
+                  train_loader=train_loader,
+                  test_loader=test_loader,
+                  device=device,
+                  epochs=HYPER_PARAMS['EPOCHS'],
+                  print_every=30,
+                  num_classes=HYPER_PARAMS['NUM_CLASSES'])
+
+    save_model_2(model=model,
+                 epochs=HYPER_PARAMS['EPOCHS'],
+                 optimizer=optimizer,
+                 criterion=loss_fn,
+                 batch_size=HYPER_PARAMS['BATCH_SIZE'],
+                 lr=HYPER_PARAMS['LR'],
+                 filename='fnc_final_epoch.pth')
 
     # save_model(model, args.checkpoint)
     #
