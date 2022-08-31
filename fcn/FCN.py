@@ -11,17 +11,20 @@ import time
 import argparse
 
 
-def train(model, criterion, optimizer, dataloader, device, epochs=1, print_every=10):
+def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, epochs=1,
+          print_every=10):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
 
-    avg_loss_list = []
-    model.train()
     start = time.time()
+
+    train_loss, test_loss = [], []
+    iou_acc, dice_acc = [], []
     for epoch in range(epochs):
+        model.train()
         running_loss = 0
-        for batch, (images, labels) in enumerate(dataloader):
+        for batch, (images, labels) in enumerate(train_loader):
             images, labels = images.to(device), labels.to(device)
             prediction = model(images)['out']
             loss = criterion(prediction, labels)
@@ -32,19 +35,29 @@ def train(model, criterion, optimizer, dataloader, device, epochs=1, print_every
 
             if (batch + 1) % print_every == 0:
                 print(
-                    f"Epoch [{epoch + 1}/{epochs}], Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+                    f"Epoch [{epoch + 1}/{epochs}], Step [{batch + 1}/{len(train_loader)}] Loss: {loss.item():.4f}")
 
-        print(f"Epochs [{epoch + 1}/{epochs}], Avg Loss: {running_loss / len(dataloader):.4f}")
-        avg_loss_list.append(running_loss / len(dataloader))
+        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
+
+        train_loss.append(running_loss / len(train_loader))
+        test_loss.append(val_epoch_loss)
+        iou_acc.append(epoch_iou)
+        dice_acc.append(epoch_dice)
+
+        scheduler.step()
+
+        print(
+            f"Epochs [{epoch + 1}/{epochs}], Avg Test Loss: {running_loss / len(train_loader):.4f}, Avg Train Loss: {val_epoch_loss}")
+
     end = time.time()
+    save_loss_plot(train_loss, test_loss, 'fcn_loss.png')
 
     print(f"\nTraining took: {end - start:.2f}s")
-    # plot_loss(avg_loss_list)
 
     return model
 
 
-def test(model, dataloader, device, num_classes):
+def test(model, criterion, dataloader, device, num_classes):
     print("\n=================")
     print("| Testing Model |")
     print("=================\n")
@@ -52,25 +65,37 @@ def test(model, dataloader, device, num_classes):
     ious, dice_scores = list(), list()
     model.eval()
     start = time.time()
+    running_loss = 0
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
             prediction = model(images)['out']
+            loss = criterion(prediction, labels)
+            running_loss += loss.item()
             prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
             labels = labels.argmax(dim=1)  # (batch_size, w, h)
             iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
             dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
+
     end = time.time()
 
-    print(f"\nTesting took: {end - start:.2f}s")
+    test_loss = running_loss / len(dataloader)
+    iou_acc = np.mean(ious)
+    dice_acc = np.mean(dice_scores)
 
-    print("\n=================")
-    print("| Model Results |")
-    print("-----------------")
-    print(f'| mIoU: {np.mean(ious) * 100:.3f}%  |')
-    print(f'| dice: {np.mean(dice_scores) * 100:.3f}%  |')
-    print("=================\n")
+    print(f"Accuracy: mIoU= {iou_acc * 100:.3f}%, dice= {dice_acc * 100:.3f}%")
+
+    return test_loss, iou_acc, dice_acc
+
+    # print(f"\nTesting took: {end - start:.2f}s")
+    #
+    # print("\n=================")
+    # print("| Model Results |")
+    # print("-----------------")
+    # print(f'| mIoU: {np.mean(ious) * 100:.3f}%  |')
+    # print(f'| dice: {np.mean(dice_scores) * 100:.3f}%  |')
+    # print("=================\n")
 
 
 def command_line_args():
@@ -136,22 +161,26 @@ def main():
     device_ids = [i for i in range(torch.cuda.device_count())]
     model = nn.DataParallel(fcn_resnet101(num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     loss_fn = nn.BCEWithLogitsLoss()
 
     train(model=model,
           criterion=loss_fn,
           optimizer=optimizer,
-          dataloader=train_loader,
+          scheduler=scheduler,
+          train_loader=train_loader,
+          test_loader=test_loader,
           device=device,
           epochs=HYPER_PARAMS['EPOCHS'],
-          print_every=30)
+          print_every=30,
+          num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
-    save_model(model, args.checkpoint)
-
-    test(model=model,
-         dataloader=test_loader,
-         device=device,
-         num_classes=HYPER_PARAMS['NUM_CLASSES'])
+    # save_model(model, args.checkpoint)
+    #
+    # test(model=model,
+    #      dataloader=test_loader,
+    #      device=device,
+    #      num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
 
 if __name__ == "__main__":
