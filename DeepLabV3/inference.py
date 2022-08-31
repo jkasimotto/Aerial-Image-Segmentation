@@ -8,7 +8,6 @@ from inference_dataset import InferenceDataset
 from utils import *
 
 
-
 def show(imgs):
     if not isinstance(imgs, list):
         imgs = [imgs]
@@ -20,14 +19,13 @@ def show(imgs):
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
     plt.show()
 
+
 def inference(model, dataloader, device, image_idx):
     print("\n=================")
     print("| Show Predictions |")
     print("=================\n")
 
-
     masked_images = []
-
     model.eval()
     with torch.inference_mode():
         for idx, (normalised_image, images) in enumerate(dataloader):
@@ -46,22 +44,22 @@ def inference(model, dataloader, device, image_idx):
                 image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.5)
                 masked_images.append(image_with_mask)
 
-
     grid = make_grid(masked_images)
     show(grid)
-
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("model", help="checkpoint file for pretrained model")
     parser.add_argument("image_dir", help="path to directory containing images to run through the model")
+    parser.add_argument("-s", "--start_index", type=int)
+    parser.add_argument("-e", "--end_index", type=int)
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
-    image_idx = [49,50]
+    image_idx = [args.start_index, args.end_index]
 
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
