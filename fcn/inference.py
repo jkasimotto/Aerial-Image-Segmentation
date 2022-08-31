@@ -1,11 +1,13 @@
 import torch
 from torchvision.io import read_image, ImageReadMode
 from torchvision.utils import draw_segmentation_masks, make_grid
+from torchvision.models.segmentation import fcn_resnet101
 import argparse
 import os
 import numpy as np
 import torchvision.transforms.functional as f
 import matplotlib.pyplot as plt
+from torch import nn
 
 
 def show(images):
@@ -33,7 +35,11 @@ def main():
         if args.index == 0:
             start, end = 0, 1
 
-    model = torch.load(args.model)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    checkpoint = torch.load(args.model)
+    model = nn.DataParallel(fcn_resnet101(num_classes=2)).to(device)
+    model.load_state_dict(checkpoint['model_state_dict'])
 
     normalisation_factor = 1 / 255
 
