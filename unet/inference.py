@@ -43,9 +43,12 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     checkpoint = torch.load(args.model)
+    # print(checkpoint["model_state_dict"].keys())
+    
+    # print(checkpoint["model_state_dict"].keys())
     model = UNET(in_channels=3, out_channels=1)
-    model.load_state_dict(checkpoint["state_dict"])
     model = nn.DataParallel(model).to(device)
+    model.load_state_dict(checkpoint["model_state_dict"])
     # model.load_state_dict(checkpoint['model_state_dict']) # This is the new version following FCN.
     # model.load_state_dict(checkpoint['state_dict']) # This is the old version.
 
@@ -56,25 +59,24 @@ def main():
     for filename in os.listdir(args.image_dir)[start: end]:
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
-        image = read_image(img_path, mode=ImageReadMode.RGB) * \
-            normalisation_factor
+        image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
         image = image.float().unsqueeze(0)
 
         # Get mask prediction for model
         with torch.inference_mode():
             output = model(image)
-            print(output[0,0,0,:2])
-            output = (torch.sigmoid(output) > 0.5).float()
-        print(output.shape)
+            # print(output[0,0,0,:2])
+            output = output.softmax(dim=1).argmax(dim=1) > 0
+            # output = (torch.sigmoid(output) > 0.5).float()
+        # print(output.shape)
 
-        print(torch.sum(output))
+        # print(torch.sum(output))
 
         image = image * (normalisation_factor ** -1)
 
         # Draw segmentation mask on top of image
         image = image.squeeze(0).type(torch.uint8)
-        image_with_mask = draw_segmentation_masks(
-            image=image, masks=output, colors="red")
+        image_with_mask = draw_segmentation_masks(image=image, masks=output, colors="red")
         masked_images.append(image_with_mask)
 
     grid = make_grid(masked_images)

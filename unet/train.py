@@ -63,14 +63,14 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, device, pri
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
         images, labels = images.to(device), labels.to(device)
-        print(images.shape)
-        print(labels.shape)
+        # print(images.shape)
+        # print(labels.shape)
         with torch.cuda.amp.autocast():
             # UNET outputs a single channel, we can remove it.
             print("PREDICTING!")
             prediction = model(images).squeeze(1)  # (Batch, H, W)
-            print(prediction.shape)
-            print(labels.shape)
+            # print(prediction.shape)
+            # print(labels.shape)
             loss = criterion(prediction, labels)
         optimizer.zero_grad()
         scaler.scale(loss).backward()  # Updates mixed precision weights
