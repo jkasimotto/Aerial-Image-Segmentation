@@ -45,6 +45,7 @@ options:
 ### Outputs
 Model checkpoints and graphs will be saved in the `checkpoint` directory. Five outputs should be produced which include
 the following:
+
 * 'fcn_loss.pth' - model with the best validation from all epochs
 * 'fcn_acc.pth' - model with the best accuracy from all epochs
 * 'fcn_final_epoch.pth' - model after all epochs
