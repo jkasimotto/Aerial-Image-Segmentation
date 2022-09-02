@@ -11,15 +11,15 @@ import time
 import argparse
 
 
-def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, epochs=1,
-          print_every=10):
+def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, checkpoint_dir,
+          epochs=1, print_every=10):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
 
     start = time.time()
 
-    save_best_model = SaveBestModel()
+    save_best_model = SaveBestModel(checkpoint_dir=checkpoint_dir)
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
     for epoch in range(epochs):
@@ -34,7 +34,7 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
+        save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
         print(
             f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
@@ -63,8 +63,8 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
         optimizer.step()
         running_loss += loss.item()
 
-        if (batch + 1) % print_every == 0:
-            print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+        # if (batch + 1) % print_every == 0:
+        #     print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
 
     return running_loss / len(dataloader)
 
@@ -102,8 +102,8 @@ def command_line_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("data_dir",
                         help="path to directory containing test and train images")
-    parser.add_argument("-c", "--checkpoint",
-                        help="filename for model checkpoint to be saved as")
+    parser.add_argument("checkpoint",
+                        help="path to directory for model checkpoint to be saved")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
     parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
@@ -171,17 +171,18 @@ def main():
                   train_loader=train_loader,
                   test_loader=test_loader,
                   device=device,
+                  checkpoint_dir=args.checkpoint,
                   epochs=HYPER_PARAMS['EPOCHS'],
                   print_every=30,
                   num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
-    save_model_2(model=model,
-                 epochs=HYPER_PARAMS['EPOCHS'],
-                 optimizer=optimizer,
-                 criterion=loss_fn,
-                 batch_size=HYPER_PARAMS['BATCH_SIZE'],
-                 lr=HYPER_PARAMS['LR'],
-                 filename='fnc_final_epoch.pth')
+    save_model(model=model,
+               epochs=HYPER_PARAMS['EPOCHS'],
+               optimizer=optimizer,
+               criterion=loss_fn,
+               batch_size=HYPER_PARAMS['BATCH_SIZE'],
+               lr=HYPER_PARAMS['LR'],
+               filepath=os.path.join(args.checkpoint, 'fcn_final_epoch.pth'))
 
 
 if __name__ == "__main__":
