@@ -22,15 +22,14 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: FCN.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir
+usage: fcn.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir checkpoint
 
 positional arguments:
   data_dir              path to directory containing test and train images
+  checkpoint            path to directory for model checkpoint to be saved
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  -c CHECKPOINT, --checkpoint CHECKPOINT
-                        filename for model checkpoint to be saved as
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
   -lr LEARNING_RATE, --learning-rate LEARNING_RATE
@@ -43,18 +42,20 @@ optional arguments:
                         number of classes for semantic segmentation
 
 ```
-### Checkpoints
-If a checkpoint filename is provided the model with be saved in the directory `/fcn/checkpoints`.
+### Outputs
+Model checkpoints and graphs will be saved in the `checkpoint` directory. Five outputs should be produced which include
+the following:
+* 'fcn_loss.pth' - model with the best validation from all epochs
+* 'fcn_acc.pth' - model with the best accuracy from all epochs
+* 'fcn_final_epoch.pth' - model after all epochs
+* 'fcn_loss.png' - graph of training loss and validation
+* 'fcn_accuracy' - graph of mIoU and Dice
 
 ---
 
 ## Making Predictions (Inference)
 After training the model on a dataset, predictions can bew made on a set of images using the `inference.py` script.
 This will display the original image with the plane mask overlay.
-
-### Arguments
-* model (str) - checkpoint file for a pretrained model
-* image_dir (path) - path to a directory which contains the images which will be passed through the model
 
 ### Usage
 ```commandline
