@@ -62,10 +62,13 @@ def main():
 
         # Get mask prediction for model
         with torch.inference_mode():
-            output = model(image).squeeze(dim=1)
-            output = torch.sigmoid(output) > 0.5
-
+            output = model(image)
+            print(output[0,0,0,:2])
+            output = (torch.sigmoid(output) > 0.5).float()
         print(output.shape)
+
+        print(torch.sum(output))
+
         image = image * (normalisation_factor ** -1)
 
         # Draw segmentation mask on top of image

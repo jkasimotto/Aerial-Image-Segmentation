@@ -1,6 +1,6 @@
 import os
 
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import torch
 import torchvision
 from torch.utils.data import DataLoader

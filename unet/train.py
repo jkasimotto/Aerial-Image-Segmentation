@@ -94,15 +94,20 @@ def test(model, criterion, dataloader, device, num_classes):
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
+            print(torch.unique(labels))
 
             # UNET outputs a single channel. Squeeze to match labels.
             prediction = model(images).squeeze(dim=1)
             loss = criterion(prediction, labels)
             running_loss += loss.item()
             prediction = torch.sigmoid(prediction) > 0.5
-            iou = jaccard_index(prediction, labels,
+            print()
+            print(prediction.shape, prediction.dtype, torch.unique(prediction).shape)
+            print(labels.int().shape, labels.int().dtype, torch.unique(labels).shape)
+            print(num_classes)
+            iou = jaccard_index(prediction, labels.int(),
                                 num_classes=num_classes).item()
-            dice_score = dice(prediction, labels,
+            dice_score = dice(prediction, labels.int(),
                               num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
 
