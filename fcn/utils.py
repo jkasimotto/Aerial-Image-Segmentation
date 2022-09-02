@@ -5,24 +5,37 @@ import os
 
 class SaveBestModel:
 
-    def __init__(self):
+    def __init__(self, checkpoint_dir):
         self.best_valid_loss = float('inf')
+        self.best_accuracy = 0
+        self.checkpoint_dir = checkpoint_dir
 
-    def __call__(self, current_valid_loss, epoch, model, optimizer, criterion):
+    def __call__(self, current_valid_loss, current_accuracy, epoch, model, optimizer, criterion):
         if current_valid_loss < self.best_valid_loss:
             self.best_valid_loss = current_valid_loss
             print(f"Best validation loss: {self.best_valid_loss:.3f}")
-            print(f"Saving best model for epoch: {epoch + 1}")
-            os.makedirs('./checkpoints', exist_ok=True)
+            print(f"Saving best loss model for epoch: {epoch + 1}")
             torch.save({
                 'epoch': epoch + 1,
+                'accuracy': self.best_accuracy,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': criterion,
-            }, './checkpoints/fcn.pth')
+            }, os.path.join(self.checkpoint_dir, 'fcn_loss.pth'))
+        if current_accuracy > self.best_accuracy:
+            self.best_accuracy = current_accuracy
+            print(f"Best accuracy (mIoU): {self.best_accuracy:.3f}")
+            print(f"Saving best accuracy model for epoch: {epoch + 1}")
+            torch.save({
+                'epoch': epoch + 1,
+                'accuracy': self.best_accuracy,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': criterion,
+            }, os.path.join(self.checkpoint_dir, 'fcn_acc.pth'))
 
 
-def save_loss_plot(train_loss, test_loss, filename):
+def save_loss_plot(train_loss, test_loss, filepath):
     plt.figure(figsize=(10, 7))
     plt.plot(
         train_loss, color='orange', linestyle='-',
@@ -35,11 +48,10 @@ def save_loss_plot(train_loss, test_loss, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    os.makedirs('./outputs', exist_ok=True)
-    plt.savefig(os.path.join('./outputs', filename))
+    plt.savefig(filepath)
 
 
-def save_acc_plot(iou_acc, dice_acc, filename):
+def save_acc_plot(iou_acc, dice_acc, filepath):
     plt.figure(figsize=(10, 7))
     plt.plot(
         iou_acc, color='orange', linestyle='-',
@@ -52,8 +64,7 @@ def save_acc_plot(iou_acc, dice_acc, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy')
     plt.legend()
-    os.makedirs('./outputs', exist_ok=True)
-    plt.savefig(os.path.join('./outputs', filename))
+    plt.savefig(filepath)
 
 
 def plot_pred(prediction):
@@ -72,17 +83,7 @@ def plot_loss(losses):
     plt.show()
 
 
-def save_model(model, checkpoint):
-    if checkpoint is None:
-        print("\nNo checkpoint specified: model was not saved")
-        return
-    path = os.path.join('./checkpoints', checkpoint)
-    torch.save(model, path)
-    print(f"\nModel saved to {path}")
-
-
-def save_model_2(model, epochs, optimizer, criterion, batch_size, lr, filename):
-    path = os.path.join('./checkpoints', filename)
+def save_model(model, epochs, optimizer, criterion, batch_size, lr, filepath):
     torch.save({
         'epoch': epochs,
         'model_state_dict': model.state_dict(),
@@ -90,5 +91,5 @@ def save_model_2(model, epochs, optimizer, criterion, batch_size, lr, filename):
         'loss': criterion,
         'batch_size': batch_size,
         'lr': lr,
-    }, path)
-    print(f"\nFinal model saved to {path}")
+    }, filepath)
+    print(f"\nFinal model saved to {filepath}")
