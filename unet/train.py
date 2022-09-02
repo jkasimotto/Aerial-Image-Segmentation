@@ -101,10 +101,6 @@ def test(model, criterion, dataloader, device, num_classes):
             loss = criterion(prediction, labels)
             running_loss += loss.item()
             prediction = torch.sigmoid(prediction) > 0.5
-            print()
-            print(prediction.shape, prediction.dtype, torch.unique(prediction).shape)
-            print(labels.int().shape, labels.int().dtype, torch.unique(labels).shape)
-            print(num_classes)
             iou = jaccard_index(prediction, labels.int(),
                                 num_classes=num_classes).item()
             dice_score = dice(prediction, labels.int(),

@@ -69,17 +69,14 @@ class UNET(nn.Module):
     def forward(self, x):
         skip_connections = []
 
-        print("Going down")
         for down in self.downs:
             x = down(x)
             skip_connections.append(x) # We append downsampled layers. The first is the one with the highest resolution (no downsampling), the last will be the lowest resolution (all downsampled)
             x = self.pool(x)
         
-        print("Bottleneck")
         # After downsampling go through the bottleneck layer.
         x = self.bottleneck(x)
         
-        print("Going up")
         # When going through the up layers we concat skip_connections in reverse order so I reverse them here.
         skip_connections = skip_connections[::-1] 
 
