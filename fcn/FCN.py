@@ -42,8 +42,8 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
 
     end = time.time()
 
-    save_loss_plot(train_loss, test_loss, 'fcn_loss.png')
-    save_acc_plot(iou_acc, dice_acc, 'fcn_accuracy.png')
+    save_loss_plot(train_loss, test_loss, os.path.join(checkpoint_dir, 'fcn_loss.png'))
+    save_acc_plot(iou_acc, dice_acc, os.path.join(checkpoint_dir, 'fcn_accuracy.png'))
 
     print(f"\nTraining took: {end - start:.2f}s")
 

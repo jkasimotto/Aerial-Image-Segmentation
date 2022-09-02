@@ -14,26 +14,28 @@ class SaveBestModel:
         if current_valid_loss < self.best_valid_loss:
             self.best_valid_loss = current_valid_loss
             print(f"Best validation loss: {self.best_valid_loss:.3f}")
-            print(f"Saving best model for epoch: {epoch + 1}")
+            print(f"Saving best loss model for epoch: {epoch + 1}")
             torch.save({
                 'epoch': epoch + 1,
+                'accuracy': self.best_accuracy,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': criterion,
             }, os.path.join(self.checkpoint_dir, 'fcn_loss.pth'))
         if current_accuracy > self.best_accuracy:
             self.best_accuracy = current_accuracy
-            print(f"Best accuracy (mIoU): {self.best_valid_loss:.3f}")
-            print(f"Saving best model for epoch: {epoch + 1}")
+            print(f"Best accuracy (mIoU): {self.best_accuracy:.3f}")
+            print(f"Saving best accuracy model for epoch: {epoch + 1}")
             torch.save({
                 'epoch': epoch + 1,
+                'accuracy': self.best_accuracy,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': criterion,
             }, os.path.join(self.checkpoint_dir, 'fcn_acc.pth'))
 
 
-def save_loss_plot(train_loss, test_loss, filename):
+def save_loss_plot(train_loss, test_loss, filepath):
     plt.figure(figsize=(10, 7))
     plt.plot(
         train_loss, color='orange', linestyle='-',
@@ -46,11 +48,10 @@ def save_loss_plot(train_loss, test_loss, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    os.makedirs('./outputs', exist_ok=True)
-    plt.savefig(os.path.join('./outputs', filename))
+    plt.savefig(filepath)
 
 
-def save_acc_plot(iou_acc, dice_acc, filename):
+def save_acc_plot(iou_acc, dice_acc, filepath):
     plt.figure(figsize=(10, 7))
     plt.plot(
         iou_acc, color='orange', linestyle='-',
@@ -63,8 +64,7 @@ def save_acc_plot(iou_acc, dice_acc, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy')
     plt.legend()
-    os.makedirs('./outputs', exist_ok=True)
-    plt.savefig(os.path.join('./outputs', filename))
+    plt.savefig(filepath)
 
 
 def plot_pred(prediction):
