@@ -57,3 +57,7 @@ local_data/
 
 # Python virtual environment
 venv/
+
+# Model checkpoint files
+*.pt
+*.pth
