@@ -67,12 +67,14 @@ def main():
     inference_dataset = InferenceDataset(img_dir=args.image_dir, transform=transform)
     inference_loader = DataLoader(inference_dataset, batch_size=1)
 
-    model = torch.load(args.model)
+    checkpoint = torch.load(args.model)
+    model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', num_classes=2).to(device)
+    model.load_state_dict(checkpoint['model_state_dict'])
 
     inference(model=model,
-         dataloader=inference_loader,
-         device=device,
-         image_idx = image_idx)
+              dataloader=inference_loader,
+              device=device,
+              image_idx=image_idx)
 
 
 if __name__ == "__main__":
