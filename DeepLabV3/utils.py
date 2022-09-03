@@ -12,13 +12,13 @@ class SaveBestModel:
             self.best_valid_loss = current_valid_loss
             print(f"Best validation loss: {self.best_valid_loss:.3f}")
             print(f"Saving best model for epoch: {epoch + 1}")
-            os.makedirs('./checkpoints', exist_ok=True)
+            os.makedirs('/home/usyd-04a/checkpoints/deeplab/', exist_ok=True)
             torch.save({
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': criterion,
-            }, './checkpoints/deepLabV3.pth')
+            }, '/home/usyd-04a/checkpoints/deeplab/deepLabV3.pth')
 
 
 def save_loss_plot(train_loss, test_loss, filename):
@@ -34,8 +34,8 @@ def save_loss_plot(train_loss, test_loss, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    os.makedirs('./outputs', exist_ok=True)
-    plt.savefig(os.path.join('./outputs', filename))
+    os.makedirs('/home/usyd-04a/checkpoints/deeplab/', exist_ok=True)
+    plt.savefig(os.path.join('/home/usyd-04a/checkpoints/deeplab/', filename))
 
 
 def save_acc_plot(iou_acc, dice_acc, filename):
@@ -51,8 +51,8 @@ def save_acc_plot(iou_acc, dice_acc, filename):
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy')
     plt.legend()
-    os.makedirs('./outputs', exist_ok=True)
-    plt.savefig(os.path.join('./outputs', filename))
+    os.makedirs('/home/usyd-04a/checkpoints/deeplab/', exist_ok=True)
+    plt.savefig(os.path.join('/home/usyd-04a/checkpoints/deeplab/', filename))
 
 
 def plot_pred(prediction):
@@ -75,12 +75,12 @@ def save_model(model, checkpoint):
     if checkpoint is None:
         print("\nNo checkpoint specified: model was not saved")
         return
-    path = os.path.join('./checkpoints', checkpoint)
+    path = os.path.join('/home/usyd-04a/checkpoints/deeplab/', checkpoint)
     torch.save(model, path)
     print(f"\nModel saved to {path}")
 
 def save_model_2(model, epochs, optimizer, criterion, batch_size, lr, filename):
-    path = os.path.join('./checkpoints', filename)
+    path = os.path.join('/home/usyd-04a/checkpoints/deeplab/', filename)
     torch.save({
         'epoch': epochs,
         'model_state_dict': model.state_dict(),

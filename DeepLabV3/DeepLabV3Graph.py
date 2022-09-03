@@ -48,6 +48,9 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     save_loss_plot(train_loss, test_loss, 'DeepLabV3_loss.png')
     save_acc_plot(iou_acc, dice_acc, 'DeepLabV3_accuracy.png')
 
+    excel = np.array([train_loss, test_loss, iou_acc, dice_acc])
+    np.savetxt('/home/usyd-04a/checkpoints/deeplab/deeplab.csv', excel, delimiter=',')
+
     print(f"\nTraining took: {end - start:.2f}s")
 
     return model
@@ -66,8 +69,8 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
         optimizer.step()
         running_loss += loss.item()
 
-        if (batch + 1) % print_every == 0:
-            print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+        # if (batch + 1) % print_every == 0:
+        #     print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
 
     return running_loss / len(dataloader)
 
@@ -162,7 +165,7 @@ def main():
     # ----------------------
 
     device_ids = [i for i in range(torch.cuda.device_count())]
-    model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', num_classes=HYPER_PARAMS['NUM_CLASSES']).to(device)
+    model = nn.DataParallel(torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
     loss_fn = nn.BCEWithLogitsLoss()
 
