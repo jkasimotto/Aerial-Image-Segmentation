@@ -15,7 +15,7 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from engine import train_one_epoch, evaluate
 import utils
 import transforms as T
-
+from engine import *
 
 def get_model_instance_segmentation(num_classes):
     # load an instance segmentation model pre-trained on COCO
@@ -136,7 +136,16 @@ def main():
         lr_scheduler.step()
         # evaluate on the test dataset
         evaluate(model, data_loader_test, device=device)
-
+    # make the plot
+    plt.figure(figsize=(10, 7))
+    plt.plot(
+        loss_plot, color='red', linestyle='-',
+        label='test loss'
+    )
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig("/loss_plot")
     print("That's it!")
     
 
