@@ -15,7 +15,7 @@ from dataset import PlanesDataset
 from torch.utils.data import DataLoader
 
 from model import UNET
-from utils import (SaveBestModel, save_acc_plot, save_loss_plot,
+from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
 
 
@@ -170,11 +170,6 @@ def main():
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
-    train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir)
-    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], num_workers=2)
-
     # Augmentations to training set
     train_transforms = A.Compose([
         A.Rotate(limit=35, p=1),
@@ -195,6 +190,18 @@ def main():
             max_pixel_value=255.0,
         ),
         ToTensorV2()])
+
+    train_loader, test_loader = get_loaders(
+        img_dir,
+        mask_dir,
+        test_img_dir,
+        test_mask_dir,
+        HYPER_PARAMS['BATCH_SIZE'],
+        train_transforms,
+        test_transforms,
+        HYPER_PARAMS['NUM_WORKERS'],
+        HYPER_PARAMS['PIN_MEMORY']
+    )
 
     # ----------------------
     # DEFINE MODEL
