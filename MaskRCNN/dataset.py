@@ -2,21 +2,23 @@ import os
 import numpy as np
 import torch
 from PIL import Image
+from torch.utils.data import Dataset
 
 
-class PlanesDataset(torch.utils.data.Dataset):
-    def __init__(self, root, transforms):
-        self.root = root
+class PlanesDataset(Dataset):
+    def __init__(self, img_dir, mask_dir, transforms):
+        self.img_dir = img_dir
+        self.mask_dir = mask_dir
         self.transforms = transforms
         # load all image files, sorting them to
         # ensure that they are aligned
-        self.imgs = list(sorted(os.listdir(os.path.join(root, "instance_images_tiled"))))
-        self.masks = list(sorted(os.listdir(os.path.join(root, "instance_masks_tiled"))))
+        self.imgs = list(sorted(os.listdir(img_dir)))
+        self.masks = list(sorted(os.listdir(mask_dir)))
 
     def __getitem__(self, idx):
         # load images and masks
-        img_path = os.path.join(self.root, "instance_images_tiled", self.imgs[idx])
-        mask_path = os.path.join(self.root, "instance_masks_tiled", self.masks[idx])
+        img_path = os.path.join(self.img_dir, self.imgs[idx])
+        mask_path = os.path.join(self.mask_dir, self.masks[idx])
         img = Image.open(img_path).convert("RGB")
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance

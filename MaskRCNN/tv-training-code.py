@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from PIL import Image
 from dataset import PlanesDataset
+import argparse
 
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
@@ -18,7 +19,7 @@ import transforms as T
 
 def get_model_instance_segmentation(num_classes):
     # load an instance segmentation model pre-trained on COCO
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights="DEFAULT")
+    model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights=None)
 
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -45,28 +46,68 @@ def get_transform(train):
     return T.Compose(transforms)
 
 
+def command_line_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_dir",
+                        help="path to directory containing test and train images")
+    parser.add_argument("checkpoint",
+                        help="path to directory for model checkpoint to be saved")
+    parser.add_argument("-b", '--batch-size', default=16, type=int,
+                        help="dataloader batch size")
+    parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
+                        help="learning rate to be applied to the model")
+    parser.add_argument("-e", "--epochs", default=1, type=int,
+                        help="number of epochs to train the model for")
+    parser.add_argument("-w", "--workers", default=2, type=int,
+                        help="number of workers used in the dataloader")
+    parser.add_argument("-n", "--num-classes", default=2, type=int,
+                        help="number of classes for semantic segmentation")
+    args = parser.parse_args()
+    return args
+
+
 def main():
+    args = command_line_args()
+
     # train on the GPU or on the CPU, if a GPU is not available
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    # our dataset has two classes only - background and person
-    num_classes = 2
+    # ----------------------
+    # DEFINE HYPER PARAMETERS
+    # ----------------------
+
+    HYPER_PARAMS = {
+        'NUM_CLASSES': args.num_classes,
+        'BATCH_SIZE': args.batch_size,
+        'NUM_WORKERS': args.workers,
+        'LR': args.learning_rate,
+        'EPOCHS': args.epochs,
+    }
+
+    # ----------------------
+    # CREATE DATASET
+    # ----------------------
+
+    img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test_small/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test_small/greyscale_masks_tiled')
+
+    # our dataset has two classes only - background and plane
+    num_classes = HYPER_PARAMS['NUM_CLASSES']
     # use our dataset and defined transformations
-    dataset = PlanesDataset('synthetic/train', get_transform(train=True))
-    dataset_test = PlanesDataset('synthetic/train', get_transform(train=False))
+    dataset = PlanesDataset(img_dir, mask_dir, get_transform(train=True))
+    dataset_test = PlanesDataset(test_img_dir, test_mask_dir, get_transform(train=False))
 
-    # split the dataset in train and test set
-    indices = torch.randperm(len(dataset)).tolist()
-    dataset = torch.utils.data.Subset(dataset, indices[:-50])
-    dataset_test = torch.utils.data.Subset(dataset_test, indices[-50:])
-
+    num_workers = HYPER_PARAMS['NUM_WORKERS']
+    batch_size = HYPER_PARAMS['BATCH_SIZE']
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=2, shuffle=True, num_workers=4,
+        dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
         collate_fn=utils.collate_fn)
 
     data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, shuffle=False, num_workers=4,
+        dataset_test, batch_size=1, shuffle=False, num_workers=num_workers,
         collate_fn=utils.collate_fn)
 
     # get the model using our helper function
@@ -77,7 +118,8 @@ def main():
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(params, lr=0.005,
+    lr = HYPER_PARAMS['LR']
+    optimizer = torch.optim.SGD(params, lr=lr,
                                 momentum=0.9, weight_decay=0.0005)
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
@@ -85,7 +127,7 @@ def main():
                                                    gamma=0.1)
 
     # let's train it for 10 epochs
-    num_epochs = 10
+    num_epochs = HYPER_PARAMS['EPOCHS']
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
