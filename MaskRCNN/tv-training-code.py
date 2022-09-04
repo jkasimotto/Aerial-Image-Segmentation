@@ -89,10 +89,10 @@ def main():
     # CREATE DATASET
     # ----------------------
 
-    img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'test_small/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test_small/greyscale_masks_tiled')
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
 
     # our dataset has two classes only - background and plane
     num_classes = HYPER_PARAMS['NUM_CLASSES']
