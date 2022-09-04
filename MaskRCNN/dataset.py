@@ -44,8 +44,11 @@ class PlanesDataset(Dataset):
             xmax = np.max(pos[1])
             ymin = np.min(pos[0])
             ymax = np.max(pos[0])
-            if ymax - ymin > 0 and xmax - xmin > 0:
-                boxes.append([xmin, ymin, xmax, ymax])
+            if xmax - xmin <= 0:
+                xmax = xmin + 1
+            if ymax - ymin <= 0:
+                ymax = ymin + 1
+            boxes.append([xmin, ymin, xmax, ymax])
 
         num_objs = len(boxes)
 
