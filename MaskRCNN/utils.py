@@ -280,3 +280,38 @@ def init_distributed_mode(args):
     )
     torch.distributed.barrier()
     setup_for_distributed(args.rank == 0)
+
+
+class SaveBestModel:
+
+    def __init__(self, checkpoint_dir):
+        self.best_valid_loss = float('inf')
+        #self.best_accuracy = 0
+        self.checkpoint_dir = checkpoint_dir
+
+    def __call__(self, current_valid_loss, epoch, model, optimizer):
+        if current_valid_loss < self.best_valid_loss:
+            self.best_valid_loss = current_valid_loss
+            print(f"Best validation loss: {self.best_valid_loss:.3f}")
+            print(f"Saving best loss model for epoch: {epoch + 1}")
+            torch.save({
+                'epoch': epoch + 1,
+                #'accuracy': self.best_accuracy,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+            }, os.path.join(self.checkpoint_dir, 'fcn_loss.pth'))
+        """
+        if current_accuracy > self.best_accuracy:
+            self.best_accuracy = current_accuracy
+            print(f"Best accuracy (mIoU): {self.best_accuracy:.3f}")
+            print(f"Saving best accuracy model for epoch: {epoch + 1}")
+            torch.save({
+                'epoch': epoch + 1,
+                'accuracy': self.best_accuracy,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': criterion,
+            }, os.path.join(self.checkpoint_dir, 'fcn_acc.pth'))
+        """
+
+

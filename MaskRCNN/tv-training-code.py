@@ -16,6 +16,7 @@ from engine import train_one_epoch, evaluate
 import utils
 import transforms as T
 from engine import *
+import matplotlib.pyplot as plt
 
 def get_model_instance_segmentation(num_classes):
     # load an instance segmentation model pre-trained on COCO
@@ -128,6 +129,7 @@ def main():
 
     # let's train it for 10 epochs
     num_epochs = HYPER_PARAMS['EPOCHS']
+    save_best_model = utils.SaveBestModel(checkpoint_dir=args.checkpoint)
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
@@ -136,6 +138,9 @@ def main():
         lr_scheduler.step()
         # evaluate on the test dataset
         evaluate(model, data_loader_test, device=device)
+        val_epoch_loss = loss_plot[epoch]
+        save_best_model(val_epoch_loss, epoch, model, optimizer)
+
     # make the plot
     plt.figure(figsize=(10, 7))
     plt.plot(
@@ -145,7 +150,7 @@ def main():
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig("/loss_plot")
+    plt.savefig('loss_plot')
     print("That's it!")
     
 
