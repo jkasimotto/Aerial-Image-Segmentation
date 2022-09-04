@@ -20,7 +20,7 @@ class PlanesDataset(Dataset):
 
     def __getitem__(self, index):
         img_path = os.path.join(self.img_dir, self.images[index])
-        mask_path = os.path.join(self.mask_dir, self.images[index].replace('.png', '_mask.png'))
+        mask_path = os.path.join(self.mask_dir, self.images[index].replace('.png', '_greyscale_mask.png'))
 
         image = np.array(Image.open(img_path).convert("RGB")) # Used np.array to use the albumentations library.
         mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
