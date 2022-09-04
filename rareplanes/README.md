@@ -3,16 +3,18 @@ This script downloads the synthetic data from the Rareplanes AWS s3 bucket. By d
 
 ## Usage
 ```commandline
-python3 rareplanes_synthetic.py
+usage: rareplanes_synthetic.py [-h] [-o OUTPUT_PATH] [-s DATA_SPLIT] [-n LIMIT] [-a]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUTPUT_PATH, --output-path OUTPUT_PATH
+                        location to where synthetic data will be stored
+                        DEFAULT=home directory
+  -s DATA_SPLIT, --data-split DATA_SPLIT
+                        ratio of training data to test data to download
+                        DEFAULT=0.8
+  -n LIMIT, --limit LIMIT
+                        number of images to download
+                        DEFAULT=10
+  -a, --all             download all the files
 ```
-
-### Optional Arg: Output Path
-The location where to download the files can be specified using the `-o` or `--output-path`
-arguments. By default, the files will be downloaded in the root directory in a folder called 'synthetic'.
-
-### Optional Arg: File Limit
-The number of files downloaded can be limited by using the `-n` or `--limit` arguments. By default, 10 files will
-be downloaded.
-
-### Flag: Download All
-To download all the files approximately 211GB add the `-a` flag. This will override the limit flag.
