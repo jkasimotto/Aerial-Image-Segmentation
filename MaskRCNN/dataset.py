@@ -47,6 +47,8 @@ class PlanesDataset(Dataset):
             if ymax - ymin > 0 and xmax - xmin > 0:
                 boxes.append([xmin, ymin, xmax, ymax])
 
+        num_objs = len(boxes)
+
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         # there is only one class
