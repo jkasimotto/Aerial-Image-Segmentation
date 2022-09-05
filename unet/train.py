@@ -52,8 +52,8 @@ def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loa
 
     end = time.time()
 
-    save_loss_plot(train_loss, test_loss, 'fcn_loss.png')
-    save_acc_plot(iou_acc, dice_acc, 'fcn_accuracy.png')
+    save_loss_plot(train_loss, test_loss, 'unet_loss.png')
+    save_acc_plot(iou_acc, dice_acc, 'unet_accuracy.png')
 
     print(f"\nTraining took: {end - start:.2f}s")
 
@@ -166,9 +166,9 @@ def main():
     # CREATE DATASET
     # ----------------------
     img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
 
     # Augmentations to training set
     train_transforms = A.Compose([

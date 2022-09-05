@@ -8,7 +8,6 @@ import torch
 import torchvision.transforms.functional as f
 from torch import nn
 from torchvision.io import ImageReadMode, read_image
-from torchvision.models.segmentation import fcn_resnet101
 from torchvision.utils import draw_segmentation_masks, make_grid
 
 from model import UNET
@@ -23,6 +22,7 @@ def show(images):
         img = f.to_pil_image(img)
         axs[0, i].imshow(np.asarray(img))
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
+    plt.show()
     plt.savefig("inference.png")
 
 
@@ -76,7 +76,7 @@ def main():
 
         # Draw segmentation mask on top of image
         image = image.squeeze(0).type(torch.uint8)
-        image_with_mask = draw_segmentation_masks(image=image, masks=output, colors="red")
+        image_with_mask = draw_segmentation_masks(image=image, masks=output, colors="red", alpha=0.5)
         masked_images.append(image_with_mask)
 
     grid = make_grid(masked_images)
