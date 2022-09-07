@@ -112,6 +112,39 @@ class UNET(nn.Module):
         self.decoder = UnetDecoder(features_sizes, out_channels, attn)
 
     def forward(self, x):
+<<<<<<< HEAD
         features = self.encoder(x)
         out = self.decoder(features)
         return out
+=======
+        skip_connections = []
+
+        for down in self.downs:
+            x = down(x)
+            skip_connections.append(x) # We append downsampled layers. The first is the one with the highest resolution (no downsampling), the last will be the lowest resolution (all downsampled)
+            x = self.pool(x)
+        
+        # After downsampling go through the bottleneck layer.
+        x = self.bottleneck(x)
+        
+        # When going through the up layers we concat skip_connections in reverse order so I reverse them here.
+        skip_connections = skip_connections[::-1] 
+
+        # Step size of 2 because when we created self.ups the 2 convolutions we appended are considered as a single step.
+        for idx in range(0, len(self.ups), 2):
+            # Upsample with ConvTranspose2d 
+            x = self.ups[idx](x) 
+
+            # Concatenate the corresponding skip_connection.
+            # If the input dimenions are not perfectly divisible by (2**#down_samples) then downsampling will reduce the size of x and concat won't work. 
+            # We solve this by resizing x.
+            skip_connection = skip_connections[idx//2] # Floor division gets the skip_connections linearly.
+            if x.shape != skip_connection.shape:
+                x = TF.resize(x, size=skip_connection.shape[2:]) # Only resize along height and width leaving batch_size and channels untouched.
+            concat_skip = torch.cat((skip_connection, x), dim=1) # Concat along channel dimension.
+
+            # The DoubleConv
+            x = self.ups[idx+1](concat_skip)
+        
+        return self.final_conv(x)
+>>>>>>> unet-train-v2
