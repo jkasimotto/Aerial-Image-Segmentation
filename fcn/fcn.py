@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 import time
 import argparse
+import wandb
 
 
 def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, checkpoint_dir,
@@ -28,6 +29,13 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device, print_every)
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
         scheduler.step()
+
+        wandb.log({
+            'train_loss': train_epoch_loss,
+            "val_loss": val_epoch_loss,
+            "mIoU": epoch_iou,
+            "dice": epoch_dice,
+        })
 
         train_loss.append(train_epoch_loss)
         test_loss.append(val_epoch_loss)
@@ -121,24 +129,29 @@ def command_line_args():
 def main():
     args = command_line_args()
 
+    # ----------------------
+    # DEFINE HYPER PARAMETERS
+    # ----------------------
+
+    HYPER_PARAMS = {
+        'num_classes': args.num_classes,
+        'batch_size': args.batch_size,
+        'num_workers': args.workers,
+        'learning_rate': args.learning_rate,
+        'epochs': args.epochs,
+    }
+
+    wandb.config = HYPER_PARAMS
+
+    # Set up Weights and Biases
+    wandb.init(project="FCN", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
+
     # Needed to download model from internet
     # ssl._create_default_https_context = ssl._create_unverified_context
 
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
-
-    # ----------------------
-    # DEFINE HYPER PARAMETERS
-    # ----------------------
-
-    HYPER_PARAMS = {
-        'NUM_CLASSES': args.num_classes,
-        'BATCH_SIZE': args.batch_size,
-        'NUM_WORKERS': args.workers,
-        'LR': args.learning_rate,
-        'EPOCHS': args.epochs,
-    }
 
     # ----------------------
     # CREATE DATASET
@@ -151,37 +164,39 @@ def main():
 
     train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2)
+    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2)
 
     # ----------------------
     # DEFINE MODEL
     # ----------------------
 
     device_ids = [i for i in range(torch.cuda.device_count())]
-    model = nn.DataParallel(fcn_resnet101(num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
+    model = nn.DataParallel(fcn_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-    loss_fn = nn.BCEWithLogitsLoss()
+    criterion = nn.BCEWithLogitsLoss()
+
+    wandb.watch(model, criterion=criterion)
 
     model = train(model=model,
-                  criterion=loss_fn,
+                  criterion=criterion,
                   optimizer=optimizer,
                   scheduler=scheduler,
                   train_loader=train_loader,
                   test_loader=test_loader,
                   device=device,
                   checkpoint_dir=args.checkpoint,
-                  epochs=HYPER_PARAMS['EPOCHS'],
+                  epochs=HYPER_PARAMS['epochs'],
                   print_every=30,
-                  num_classes=HYPER_PARAMS['NUM_CLASSES'])
+                  num_classes=HYPER_PARAMS['num_classes'])
 
     save_model(model=model,
-               epochs=HYPER_PARAMS['EPOCHS'],
+               epochs=HYPER_PARAMS['epochs'],
                optimizer=optimizer,
-               criterion=loss_fn,
-               batch_size=HYPER_PARAMS['BATCH_SIZE'],
-               lr=HYPER_PARAMS['LR'],
+               criterion=criterion,
+               batch_size=HYPER_PARAMS['batch_size'],
+               lr=HYPER_PARAMS['learning_rate'],
                filepath=os.path.join(args.checkpoint, 'fcn_final_epoch.pth'))
 
 

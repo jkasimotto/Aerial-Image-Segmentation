@@ -61,3 +61,7 @@ venv/
 # Model checkpoint files
 *.pt
 *.pth
+
+# wandb log files
+wandb/
+wandb_data/
