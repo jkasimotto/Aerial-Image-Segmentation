@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms as T
+from torchvision import transforms
 
 
 class PlanesDataset(Dataset):
@@ -14,13 +14,16 @@ class PlanesDataset(Dataset):
         # ensure that they are aligned
         self.imgs = list(sorted(os.listdir(img_dir)))
         self.masks = list(sorted(os.listdir(mask_dir)))
+        # converts a PIL Image to a torch.FloatTensor
+        # of shape [C, H, W] in the range [0.0, 1.0]
+        self.as_tensor = transforms.ToTensor()
 
     def __getitem__(self, idx):
         # load image and mask paths
         img_path = os.path.join(self.img_dir, self.imgs[idx])
         mask_path = os.path.join(self.mask_dir, self.masks[idx])
         # open the original image and conver it to RGB
-        img = T.ToTensor()(Image.open(img_path).convert("RGB"))
+        img = self.as_tensor(Image.open(img_path).convert("RGB"))
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
         # with 0 being background
