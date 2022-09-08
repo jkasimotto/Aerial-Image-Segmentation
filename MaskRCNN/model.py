@@ -1,5 +1,6 @@
 import argparse
 import matplotlib.pyplot as plt
+import math
 import numpy as np
 import os
 from tqdm import tqdm
@@ -37,7 +38,7 @@ def command_line_args():
 
 
 # needs to be updated
-def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every):
+def train_one_epoch(model, optimizer, dataloader, device, print_every):
     print('[EPOCH TRAINING]')
     model.train()
 
@@ -45,17 +46,25 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
     for batch, (images, targets) in enumerate(tqdm(dataloader)):
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
         loss_dict = model(images, targets)
         losses = sum(loss for loss in loss_dict.values())
+
+        loss_value = losses.item()
+
+        if not math.isfinite(loss_value):
+            print(f"Loss is {loss_value}, stopping training")
+            print(loss_dict)
+            sys.exit(1)
+
         optimizer.zero_grad()
         losses.backward()
         optimizer.step()
-        running_loss += loss.item()
 
         #if (batch + 1) % print_every == 0:
         #    print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
 
-    return running_loss / len(dataloader)
+    return loss_value / len(dataloader)
 
 
 # have not touched yet, needs a complete re-work
@@ -63,7 +72,6 @@ def test(model, criterion, dataloader, device, num_classes):
     print("[VALIDATING]")
     ious, dice_scores = [], []
     model.eval()
-    start = time.time()
     running_loss = 0
     with torch.inference_mode():
         for images, targets in tqdm(dataloader):
@@ -76,8 +84,6 @@ def test(model, criterion, dataloader, device, num_classes):
             iou = jaccard_index(prediction, targets, num_classes=num_classes).item()
             dice_score = dice(prediction, targets, num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
-
-    end = time.time()
 
     test_loss = running_loss / len(dataloader)
     iou_acc = np.mean(ious)
@@ -107,10 +113,10 @@ def main():
     # CREATE DATASET
     # ----------------------
 
-    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
+    img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
 
     train_dataset = PlanesDataset(img_dir, mask_dir)
     test_dataset = PlanesDataset(test_img_dir, test_mask_dir)
@@ -150,7 +156,6 @@ def main():
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.Adam(params, lr=HYPER_PARAMS['LR'])
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-    loss_fn = nn.BCEWithLogitsLoss()
 
     # ----------------------
     # TRAINING
@@ -165,7 +170,6 @@ def main():
         # train for one epoch
         train_epoch_loss = train_one_epoch(
                 model=model,
-                criterion=loss_fn,
                 optimizer=optimizer,
                 dataloader=train_loader,
                 device=device,
@@ -173,11 +177,11 @@ def main():
 
         # calculate loss, iou and dice for the epoch
         val_epoch_loss, epoch_iou, epoch_dice = test(
-                model,
-                criterion,
-                test_loader,
-                device,
-                num_classes)
+                model=model,
+                criterion=nn.BCEWithLogitsLoss(),
+                dataloader=test_loader,
+                device=device,
+                num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
         # update the learning rate
         scheduler.step()

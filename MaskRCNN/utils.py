@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import torch
 import os
+import torch.distributed as dist
 
 
 class SaveBestModel:
@@ -93,6 +94,7 @@ def save_model(model, epochs, optimizer, criterion, batch_size, lr, filepath):
         'lr': lr,
     }, filepath)
     print(f"\nFinal model saved to {filepath}")
+
 
 def collate_fn(batch):
     return tuple(zip(*batch))
