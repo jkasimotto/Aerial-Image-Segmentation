@@ -10,6 +10,7 @@ import torch.optim as optim
 from albumentations.pytorch import ToTensorV2
 from torchmetrics.functional import dice, jaccard_index
 from tqdm import tqdm
+from timm.models.layers import get_attn
 
 from dataset import PlanesDataset
 from torch.utils.data import DataLoader
@@ -97,7 +98,7 @@ def test(model, criterion, dataloader, device, num_classes):
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
-            print(torch.unique(labels))
+            # print(torch.unique(labels))
 
             # UNET outputs a single channel. Squeeze to match labels.
             prediction = model(images).squeeze(dim=1)
@@ -165,9 +166,9 @@ def main():
     # ----------------------
     # CREATE DATASET
     # ----------------------
-    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    img_dir = os.path.join(args.data_dir, 'train/greyscale_images_tiled')
     mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/greyscale_images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
 
     # Augmentations to training set
@@ -209,7 +210,7 @@ def main():
 
     device_ids = [i for i in range(torch.cuda.device_count())]
     model = nn.DataParallel(
-        UNET(in_channels=3, out_channels=1), device_ids=device_ids).to(device)
+        UNET(in_channels=3, out_channels=1, attn=get_attn('ese')), device_ids=device_ids).to(device)
     criterion = nn.BCEWithLogitsLoss()  # binary cross entropy loss
     optimizer = optim.Adam(model.parameters(), lr=HYPER_PARAMS["LR"])
     # If the forward pass of an operation has float16 inputs, small gradients may not be

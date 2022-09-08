@@ -89,7 +89,7 @@ class UnetDecoder(nn.Module):
         d2 = self.up1(d2)
 
         d1 = torch.cat([e1, d2], dim=1)
-        d1 = self.decoder1(d1)
+        d1 = self.decoder1()
         d1 = self.final(d1)
 
         return d1
