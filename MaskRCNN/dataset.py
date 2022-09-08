@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms as T
 
 
 class PlanesDataset(Dataset):
@@ -19,7 +20,7 @@ class PlanesDataset(Dataset):
         img_path = os.path.join(self.img_dir, self.imgs[idx])
         mask_path = os.path.join(self.mask_dir, self.masks[idx])
         # open the original image and conver it to RGB
-        img = Image.open(img_path).convert("RGB")
+        img = T.ToTensor()(Image.open(img_path).convert("RGB"))
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
         # with 0 being background
@@ -51,10 +52,11 @@ class PlanesDataset(Dataset):
         masks = torch.as_tensor(masks, dtype=torch.uint8)
 
         # create the targe dict for training
-        target = {}
-        target["boxes"] = boxes
-        target["labels"] = labels
-        target["masks"] = masks
+        target = {
+                "boxes": boxes,
+                "labels": labels,
+                "masks": masks,
+        }
 
         return img, target
 
