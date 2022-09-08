@@ -7,14 +7,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
 from albumentations.pytorch import ToTensorV2
+from timm.models.layers import get_attn
+from torch.utils.data import DataLoader
 from torchmetrics.functional import dice, jaccard_index
 from tqdm import tqdm
-from timm.models.layers import get_attn
 
 from dataset import PlanesDataset
-from torch.utils.data import DataLoader
-
 from model import UNET
 from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
@@ -44,6 +44,13 @@ def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loa
         test_loss.append(val_epoch_loss)
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
+
+        wandb.log({
+            'train_loss': train_epoch_loss,
+            "val_loss": val_epoch_loss,
+            "mIoU": epoch_iou,
+            "dice": epoch_dice,
+        })
 
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
@@ -163,6 +170,9 @@ def main():
         'PIN_MEMORY': True
     }
 
+    wandb.config = HYPER_PARAMS
+    wandb.init(project="UNET", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
+
     # ----------------------
     # CREATE DATASET
     # ----------------------
@@ -218,6 +228,8 @@ def main():
     # https://pytorch.org/docs/stable/amp.html#gradient-scaling
     scaler = torch.cuda.amp.GradScaler()
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+
+    wandb.watch(model, criterion=criterion)
 
     model = train(model,
                   criterion=criterion,
