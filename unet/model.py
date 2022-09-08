@@ -3,6 +3,14 @@ import torch.nn as nn
 from fastai.vision.all import noop
 
 
+class NoOP(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def forward(self, x):
+        return x
+
+
 class UnetBlock(nn.Module):
     """
     This class implements the double convolution used in both the encoder and decoder of the UNET model.
@@ -13,15 +21,17 @@ class UnetBlock(nn.Module):
         # Set bias to False because we use BatchNorm.
         # Set in_channels=outchannels in the second convolution to enable composition.
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
+                      kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU(inplace=True),
 
-            nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
+                      kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU(inplace=True),
 
-            attn(out_channels, inplace=True) if attn else noop
+            attn(out_channels, inplace=True) if attn else NoOP()
         )
 
     def forward(self, x):
@@ -50,7 +60,6 @@ class UnetEncoder(nn.Module):
         return x1, x2, x3, x4, x5
 
 
-
 class UnetDecoder(nn.Module):
 
     def __init__(self, features, out_channels, attn) -> None:
@@ -58,15 +67,24 @@ class UnetDecoder(nn.Module):
         # What goes down must come up... in reverse
         features = features[::-1]
 
-        self.up4 = nn.ConvTranspose2d(in_channels=features[0]*2, out_channels=features[0], kernel_size=2, stride=2)
-        self.up3 = nn.ConvTranspose2d(in_channels=features[1]*2, out_channels=features[1], kernel_size=2, stride=2)
-        self.up2 = nn.ConvTranspose2d(in_channels=features[2]*2, out_channels=features[2], kernel_size=2, stride=2)
-        self.up1 = nn.ConvTranspose2d(in_channels=features[3]*2, out_channels=features[3], kernel_size=2, stride=2)
-        self.decoder4 = UnetBlock(in_channels=features[0]*2, out_channels=features[0], attn=attn)
-        self.decoder3 = UnetBlock(in_channels=features[1]*2, out_channels=features[1], attn=attn)
-        self.decoder2 = UnetBlock(in_channels=features[2]*2, out_channels=features[2], attn=attn)
-        self.decoder1 = UnetBlock(in_channels=features[3]*2, out_channels=features[3], attn=attn)
-        self.final = nn.Conv2d(in_channels=features[3], out_channels=out_channels, kernel_size=1)
+        self.up4 = nn.ConvTranspose2d(
+            in_channels=features[0]*2, out_channels=features[0], kernel_size=2, stride=2)
+        self.up3 = nn.ConvTranspose2d(
+            in_channels=features[1]*2, out_channels=features[1], kernel_size=2, stride=2)
+        self.up2 = nn.ConvTranspose2d(
+            in_channels=features[2]*2, out_channels=features[2], kernel_size=2, stride=2)
+        self.up1 = nn.ConvTranspose2d(
+            in_channels=features[3]*2, out_channels=features[3], kernel_size=2, stride=2)
+        self.decoder4 = UnetBlock(
+            in_channels=features[0]*2, out_channels=features[0], attn=attn)
+        self.decoder3 = UnetBlock(
+            in_channels=features[1]*2, out_channels=features[1], attn=attn)
+        self.decoder2 = UnetBlock(
+            in_channels=features[2]*2, out_channels=features[2], attn=attn)
+        self.decoder1 = UnetBlock(
+            in_channels=features[3]*2, out_channels=features[3], attn=attn)
+        self.final = nn.Conv2d(
+            in_channels=features[3], out_channels=out_channels, kernel_size=1)
 
     def forward(self, features):
         e1, e2, e3, e4, e5 = features

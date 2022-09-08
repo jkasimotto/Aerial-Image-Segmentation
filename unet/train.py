@@ -47,10 +47,10 @@ def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loa
         dice_acc.append(epoch_dice)
 
         wandb.log({
-            'train_loss': train_epoch_loss,
-            "val_loss": val_epoch_loss,
-            "mIoU": epoch_iou,
-            "dice": epoch_dice,
+            'epoch loss': train_epoch_loss,
+            "test loss": val_epoch_loss,
+            "epoch iou": epoch_iou,
+            "epoch dice": epoch_dice,
         })
 
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
@@ -171,9 +171,9 @@ def main():
         'PIN_MEMORY': True
     }
 
-    # wandb.config = HYPER_PARAMS
-    # wandb.init(project="UNET", entity="usyd-04a",
-            #    config=wandb.config, dir="./wandb_data")
+    wandb.config = HYPER_PARAMS
+    wandb.init(project="UNET", entity="usyd-04a",
+               config=wandb.config, dir="./wandb_data")
 
     # ----------------------
     # CREATE DATASET
@@ -233,7 +233,7 @@ def main():
     scaler = torch.cuda.amp.GradScaler()
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-    # wandb.watch(model, criterion=criterion)
+    wandb.watch(model, criterion=criterion)
 
     model = train(model,
                   criterion=criterion,
