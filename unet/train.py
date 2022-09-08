@@ -171,7 +171,8 @@ def main():
     }
 
     wandb.config = HYPER_PARAMS
-    wandb.init(project="UNET", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
+    wandb.init(project="UNET", entity="usyd-04a",
+               config=wandb.config, dir="./wandb_data")
 
     # ----------------------
     # CREATE DATASET
