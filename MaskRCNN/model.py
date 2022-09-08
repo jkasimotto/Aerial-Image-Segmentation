@@ -1,14 +1,18 @@
-import os
+import argparse
+import matplotlib.pyplot as plt
 import numpy as np
+import os
+from tqdm import tqdm
+
 from dataset import PlanesDataset
 from utils import SaveBestModel
-import argparse
 
 import torch
-from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
-import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
+import torch.optim as optim
 from torch import nn
+from torch.utils.data import DataLoader
+
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 
 
 def command_line_args():
@@ -35,18 +39,20 @@ def command_line_args():
 def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every):
     print('[EPOCH TRAINING]')
     model.train()
+
     running_loss = 0
     for batch, (images, targets) in enumerate(tqdm(dataloader)):
-        images, targets = images.to(device), targets.to(device)
-        prediction = model(images)['out']
-        loss = criterion(prediction, labels)
+        images = images.to(device)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        loss_dict = model(images, targets)
+        losses = sum(loss for loss in loss_dict.values())
         optimizer.zero_grad()
-        loss.backward()
+        losses.backward()
         optimizer.step()
         running_loss += loss.item()
 
-        # if (batch + 1) % print_every == 0:
-        #     print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+        #if (batch + 1) % print_every == 0:
+        #    print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
 
     return running_loss / len(dataloader)
 
@@ -54,20 +60,20 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
 # have not touched yet, needs a complete re-work
 def test(model, criterion, dataloader, device, num_classes):
     print("[VALIDATING]")
-    ious, dice_scores = list(), list()
+    ious, dice_scores = [], []
     model.eval()
     start = time.time()
     running_loss = 0
     with torch.inference_mode():
-        for images, labels in tqdm(dataloader):
-            images, labels = images.to(device), labels.to(device)
+        for images, targets in tqdm(dataloader):
+            images, targets = images.to(device), targets.to(device)
             prediction = model(images)['out']
-            loss = criterion(prediction, labels)
+            loss = criterion(prediction, targets)
             running_loss += loss.item()
             prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
-            labels = labels.argmax(dim=1)  # (batch_size, w, h)
-            iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
-            dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
+            targets = targets.argmax(dim=1)  # (batch_size, w, h)
+            iou = jaccard_index(prediction, targets, num_classes=num_classes).item()
+            dice_score = dice(prediction, targets, num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
 
     end = time.time()
@@ -100,10 +106,10 @@ def main():
     # CREATE DATASET
     # ----------------------
 
-    img_dir = os.path.join(args.data_dir, 'train1/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train1/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'train1/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'train1/greyscale_masks_tiled')
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
 
     train_dataset = PlanesDataset(img_dir, mask_dir)
     test_dataset = PlanesDataset(test_img_dir, test_mask_dir)
@@ -112,15 +118,13 @@ def main():
         dataset=train_dataset,
         batch_size=HYPER_PARAMS['BATCH_SIZE'],
         shuffle=True,
-        num_workers=HYPER_PARAMS['NUM_WORKERS'],
-        collate_fn=utils.collate_fn)
+        num_workers=HYPER_PARAMS['NUM_WORKERS'])
 
     test_loader = DataLoader(
         dataset=test_dataset,
         batch_size=HYPER_PARAMS['BATCH_SIZE'],
         shuffle=False,
-        num_workers=HYPER_PARAMS['NUM_WORKERS'],
-        collate_fn=utils.collate_fn)
+        num_workers=HYPER_PARAMS['NUM_WORKERS'])
 
     # ----------------------
     # DEFINE MODEL
@@ -133,17 +137,16 @@ def main():
     model = MaskRCNN(
             weights=None,
             num_classes=HYPER_PARAMS['NUM_CLASSES'], # optional
-            weights_backbone=None,
-            trainable_backbone_layers=3) # range 0-5, default is 3
+            weights_backbone=None)
     # enable parallelism
-    model = nn.parallel.DistributedDataParallel(model)
+    model = nn.DataParallel(model)
     # move model to the right device
     model.to(device)
 
     # get an optimizer, scheduler, and loss function
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.Adam(params, lr=HYPER_PARAMS['LR'])
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    optimizer = optim.Adam(params, lr=HYPER_PARAMS['LR'])
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     loss_fn = nn.BCEWithLogitsLoss()
 
     # ----------------------
