@@ -9,12 +9,15 @@ import numpy as np
 from tqdm import tqdm
 import time
 import argparse
+import wandb
 
 
 def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, epochs=1, print_every=10):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
+
+    wandb.watch(model, criterion=criterion)
 
     start = time.time()
 
@@ -36,6 +39,13 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         test_loss.append(val_epoch_loss)
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
+
+        wandb.log({
+            'train_loss': train_epoch_loss,
+            "val_loss": val_epoch_loss,
+            "mIoU": epoch_iou,
+            "dice": epoch_dice,
+        })
 
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
@@ -126,6 +136,8 @@ def command_line_args():
 def main():
     args = command_line_args()
 
+    wandb.init(project="DeepLabV3", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
+
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
@@ -157,7 +169,7 @@ def main():
     train_dataset = PlanesDataset(img_dir=train_img_dir, mask_dir=train_mask_dir, transform=transform)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
 
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2, drop_last=True)
     test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], num_workers=2)
 
     # ----------------------
@@ -168,6 +180,8 @@ def main():
     model = nn.DataParallel(torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
     loss_fn = nn.BCEWithLogitsLoss()
+
+
 
     train(model=model,
           criterion=loss_fn,
