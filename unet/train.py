@@ -1,6 +1,7 @@
 import argparse
 import os
 import time
+import wandb
 
 import albumentations as A
 import numpy as np
@@ -17,6 +18,14 @@ from torch.utils.data import DataLoader
 from model import UNET
 from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
+
+
+wandb.init(project="unet-model")
+wandb.config = {
+  "learning_rate": 0.001,
+  "epochs": 10,
+  "batch_size": 64
+}
 
 
 def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loader, num_classes, device, epochs=1,
@@ -45,6 +54,14 @@ def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loa
         dice_acc.append(epoch_dice)
 
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
+
+        wandb.log(
+            {"train loss": train_epoch_loss,
+            "val loss": val_epoch_loss,
+            "mIoU": epoch_iou,
+            "dice": epoch_dice
+            }
+        )
 
         print(
             f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
@@ -166,9 +183,9 @@ def main():
     # CREATE DATASET
     # ----------------------
     img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
     # Augmentations to training set
     train_transforms = A.Compose([
@@ -236,7 +253,7 @@ def main():
                  criterion=criterion,
                  batch_size=HYPER_PARAMS['BATCH_SIZE'],
                  lr=HYPER_PARAMS['LR'],
-                 filename='unet_final_epoch.pth')
+                 filename='unet_final.pth')
 
 
 # Do this so on Windows there are no issues when using NUM_WORKERS
