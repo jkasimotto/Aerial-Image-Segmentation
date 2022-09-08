@@ -15,7 +15,8 @@ from torchmetrics.functional import dice, jaccard_index
 from tqdm import tqdm
 
 from dataset import PlanesDataset
-from model2 import UNET
+from model import UNET as UNET1
+from model2 import UNET as UNET2
 from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
 
@@ -170,9 +171,9 @@ def main():
         'PIN_MEMORY': True
     }
 
-    wandb.config = HYPER_PARAMS
-    wandb.init(project="UNET", entity="usyd-04a",
-               config=wandb.config, dir="./wandb_data")
+    # wandb.config = HYPER_PARAMS
+    # wandb.init(project="UNET", entity="usyd-04a",
+            #    config=wandb.config, dir="./wandb_data")
 
     # ----------------------
     # CREATE DATASET
@@ -221,7 +222,9 @@ def main():
 
     device_ids = [i for i in range(torch.cuda.device_count())]
     model = nn.DataParallel(
-        UNET(in_channels=3, out_channels=1, attn=get_attn('ese')), device_ids=device_ids).to(device)
+        UNET1(in_channels=3, out_channels=1, attn=get_attn('ese')), device_ids=device_ids).to(device)
+    # model = nn.DataParallel(
+    #     UNET2(in_channels=3, out_channels=1), device_ids=device_ids).to(device)
     criterion = nn.BCEWithLogitsLoss()  # binary cross entropy loss
     optimizer = optim.Adam(model.parameters(), lr=HYPER_PARAMS["LR"])
     # If the forward pass of an operation has float16 inputs, small gradients may not be
@@ -230,7 +233,7 @@ def main():
     scaler = torch.cuda.amp.GradScaler()
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-    wandb.watch(model, criterion=criterion)
+    # wandb.watch(model, criterion=criterion)
 
     model = train(model,
                   criterion=criterion,

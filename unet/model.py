@@ -12,23 +12,20 @@ class UnetBlock(nn.Module):
         super().__init__()
         # Set bias to False because we use BatchNorm.
         # Set in_channels=outchannels in the second convolution to enable composition.
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn = nn.BatchNorm2d(num_features=out_channels)
-        self.relu = nn.ReLU()
-        self.attn = attn(out_channels) if attn else noop
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(num_features=out_channels),
+            nn.ReLU(inplace=True),
+
+            nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(num_features=out_channels),
+            nn.ReLU(inplace=True),
+
+            attn(out_channels, inplace=True) if attn else noop
+        )
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn(x)
-        x = self.relu(x)
-
-        x = self.conv2(x)
-        x = self.bn(x)
-        x = self.relu(x)
-
-        x = self.attn(x)
-        return x
+        return self.conv(x)
 
 
 class UnetEncoder(nn.Module):
@@ -109,6 +106,4 @@ class UNET(nn.Module):
 
     def forward(self, x):
         features = self.encoder(x)
-        out = self.decoder(features)
-        print(out.shape)
-        return out
+        return self.decoder(features)
