@@ -15,7 +15,7 @@ from torchmetrics.functional import dice, jaccard_index
 from tqdm import tqdm
 
 from dataset import PlanesDataset
-from model import UNET
+from model2 import UNET
 from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
 

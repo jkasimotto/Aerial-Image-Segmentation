@@ -110,4 +110,5 @@ class UNET(nn.Module):
     def forward(self, x):
         features = self.encoder(x)
         out = self.decoder(features)
+        print(out.shape)
         return out
