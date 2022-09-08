@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from dataset import PlanesDataset
 from utils import SaveBestModel
+from utils import collate_fn
 
 import torch
 import torch.optim as optim
@@ -42,7 +43,7 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
 
     running_loss = 0
     for batch, (images, targets) in enumerate(tqdm(dataloader)):
-        images = images.to(device)
+        images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
         loss_dict = model(images, targets)
         losses = sum(loss for loss in loss_dict.values())
@@ -118,13 +119,15 @@ def main():
         dataset=train_dataset,
         batch_size=HYPER_PARAMS['BATCH_SIZE'],
         shuffle=True,
-        num_workers=HYPER_PARAMS['NUM_WORKERS'])
+        num_workers=HYPER_PARAMS['NUM_WORKERS'],
+        collate_fn=collate_fn)
 
     test_loader = DataLoader(
         dataset=test_dataset,
         batch_size=HYPER_PARAMS['BATCH_SIZE'],
         shuffle=False,
-        num_workers=HYPER_PARAMS['NUM_WORKERS'])
+        num_workers=HYPER_PARAMS['NUM_WORKERS'],
+        collate_fn=collate_fn)
 
     # ----------------------
     # DEFINE MODEL

@@ -93,3 +93,6 @@ def save_model(model, epochs, optimizer, criterion, batch_size, lr, filepath):
         'lr': lr,
     }, filepath)
     print(f"\nFinal model saved to {filepath}")
+
+def collate_fn(batch):
+    return tuple(zip(*batch))
