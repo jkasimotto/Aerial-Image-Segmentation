@@ -8,14 +8,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
 from albumentations.pytorch import ToTensorV2
+from timm.models.layers import get_attn
+from torch.utils.data import DataLoader
 from torchmetrics.functional import dice, jaccard_index
 from tqdm import tqdm
 
 from dataset import PlanesDataset
-from torch.utils.data import DataLoader
-
-from model import UNET
+from model import UNET as UNET1
+from model2 import UNET as UNET2
 from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
 
@@ -29,7 +31,7 @@ wandb.config = {
 
 
 def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loader, num_classes, device, epochs=1,
-          print_every=10):
+          print_every=10, use_wandb=False):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -52,6 +54,14 @@ def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loa
         test_loss.append(val_epoch_loss)
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
+
+        if use_wandb:
+            wandb.log({
+                'epoch loss': train_epoch_loss,
+                "test loss": val_epoch_loss,
+                "epoch iou": epoch_iou,
+                "epoch dice": epoch_dice,
+            })
 
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
@@ -83,24 +93,17 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, device, pri
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
         images, labels = images.to(device), labels.to(device)
-        # print(images.shape)
-        # print(labels.shape)
-        with torch.cuda.amp.autocast():
-            # UNET outputs a single channel, we can remove it.
-            print("PREDICTING!")
-            prediction = model(images).squeeze(1)  # (Batch, H, W)
-            # print(prediction.shape)
-            # print(labels.shape)
-            loss = criterion(prediction, labels)
+        prediction = model(images).squeeze(dim=1)
+        loss = criterion(prediction, labels)
         optimizer.zero_grad()
-        scaler.scale(loss).backward()  # Updates mixed precision weights
-        scaler.step(optimizer)
-        scaler.update()
+        loss.backward()
+        optimizer.step()
         running_loss += loss.item()
 
-        if (batch + 1) % print_every == 0:
-            print(
-                f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+        # if (batch + 1) % print_every == 0:
+        #     print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+
+    return running_loss / len(dataloader)
 
     return running_loss / len(dataloader)
 
@@ -114,7 +117,7 @@ def test(model, criterion, dataloader, device, num_classes):
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
-            print(torch.unique(labels))
+            # print(torch.unique(labels))
 
             # UNET outputs a single channel. Squeeze to match labels.
             prediction = model(images).squeeze(dim=1)
@@ -154,12 +157,14 @@ def command_line_args():
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
                         help="number of classes for semantic segmentation")
+    parser.add_argument("--use-wandb", default=False, help="Whether to log on wandb")
     args = parser.parse_args()
     return args
 
 
 def main():
     args = command_line_args()
+
 
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -179,13 +184,25 @@ def main():
         'PIN_MEMORY': True
     }
 
+    if args.use_wandb:
+        wandb.config = HYPER_PARAMS
+        wandb.init(project="UNET", entity="usyd-04a",
+                config=wandb.config, dir="./wandb_data")
+
     # ----------------------
     # CREATE DATASET
     # ----------------------
+<<<<<<< HEAD
     img_dir = os.path.join(args.data_dir, 'train/images_tiled')
     mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
+=======
+    img_dir = os.path.join(args.data_dir, 'train/greyscale_images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/greyscale_images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
+>>>>>>> unet-with-attention
 
     # Augmentations to training set
     train_transforms = A.Compose([
@@ -226,7 +243,9 @@ def main():
 
     device_ids = [i for i in range(torch.cuda.device_count())]
     model = nn.DataParallel(
-        UNET(in_channels=3, out_channels=1), device_ids=device_ids).to(device)
+        UNET1(in_channels=3, out_channels=1, attn=get_attn('ese')), device_ids=device_ids).to(device)
+    # model = nn.DataParallel(
+    #     UNET2(in_channels=3, out_channels=1), device_ids=device_ids).to(device)
     criterion = nn.BCEWithLogitsLoss()  # binary cross entropy loss
     optimizer = optim.Adam(model.parameters(), lr=HYPER_PARAMS["LR"])
     # If the forward pass of an operation has float16 inputs, small gradients may not be
@@ -234,6 +253,9 @@ def main():
     # https://pytorch.org/docs/stable/amp.html#gradient-scaling
     scaler = torch.cuda.amp.GradScaler()
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+
+    if args.use_wandb:
+        wandb.watch(model, criterion=criterion)
 
     model = train(model,
                   criterion=criterion,

@@ -2,6 +2,58 @@ import matplotlib.pyplot as plt
 import torch
 import os
 
+class SaveBestModel:
+
+    def __init__(self):
+        self.best_valid_loss = float('inf')
+
+    def __call__(self, current_valid_loss, epoch, model, optimizer, criterion):
+        if current_valid_loss < self.best_valid_loss:
+            self.best_valid_loss = current_valid_loss
+            print(f"Best validation loss: {self.best_valid_loss:.3f}")
+            print(f"Saving best model for epoch: {epoch + 1}")
+            os.makedirs('/home/usyd-04a/checkpoints/deeplab/', exist_ok=True)
+            torch.save({
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': criterion,
+            }, '/home/usyd-04a/checkpoints/deeplab/deepLabV3.pth')
+
+
+def save_loss_plot(train_loss, test_loss, filename):
+    plt.figure(figsize=(10, 7))
+    plt.plot(
+        train_loss, color='orange', linestyle='-',
+        label='train loss'
+    )
+    plt.plot(
+        test_loss, color='red', linestyle='-',
+        label='test loss'
+    )
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    os.makedirs('/home/usyd-04a/checkpoints/deeplab/', exist_ok=True)
+    plt.savefig(os.path.join('/home/usyd-04a/checkpoints/deeplab/', filename))
+
+
+def save_acc_plot(iou_acc, dice_acc, filename):
+    plt.figure(figsize=(10, 7))
+    plt.plot(
+        iou_acc, color='orange', linestyle='-',
+        label='mIoU'
+    )
+    plt.plot(
+        dice_acc, color='red', linestyle='-',
+        label='dice score'
+    )
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    os.makedirs('/home/usyd-04a/checkpoints/deeplab/', exist_ok=True)
+    plt.savefig(os.path.join('/home/usyd-04a/checkpoints/deeplab/', filename))
+
 
 def plot_pred(prediction):
     prediction = prediction.softmax(dim=1).argmax(dim=1) > 0
@@ -23,6 +75,18 @@ def save_model(model, checkpoint):
     if checkpoint is None:
         print("\nNo checkpoint specified: model was not saved")
         return
-    path = os.path.join('./checkpoints', checkpoint)
+    path = os.path.join('/home/usyd-04a/checkpoints/deeplab/', checkpoint)
     torch.save(model, path)
     print(f"\nModel saved to {path}")
+
+def save_model_2(model, epochs, optimizer, criterion, batch_size, lr, filename):
+    path = os.path.join('/home/usyd-04a/checkpoints/deeplab/', filename)
+    torch.save({
+        'epoch': epochs,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': criterion,
+        'batch_size': batch_size,
+        'lr': lr,
+    }, path)
+    print(f"\nFinal model saved to {path}")
