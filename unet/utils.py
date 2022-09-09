@@ -2,10 +2,7 @@ import os
 
 import matplotlib.pyplot as plt
 import torch
-import torchvision
 from torch.utils.data import DataLoader
-from torchmetrics.functional import dice, jaccard_index
-from tqdm import tqdm
 
 from dataset import PlanesDataset
 
@@ -90,6 +87,7 @@ def save_model_2(model, epochs, optimizer, criterion, batch_size, lr, filename):
         'lr': lr,
     }, path)
     print(f"\nFinal model saved to {path}")
+
 
 def get_loaders(
     train_dir,
