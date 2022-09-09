@@ -20,7 +20,7 @@ class PlanesDataset(Dataset):
 
     def __getitem__(self, index):
         img_path = os.path.join(self.img_dir, self.images[index])
-        mask_path = os.path.join(self.mask_dir, self.images[index].replace('.png', '_mask.png'))
+        mask_path = os.path.join(self.mask_dir, self.images[index].replace('.png', '_white_mask.png'))
 
         image = Image.open(img_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")

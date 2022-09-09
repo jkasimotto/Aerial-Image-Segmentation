@@ -17,8 +17,8 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     print("| Training Model |")
     print("==================\n")
 
-    # Required to log on Weights & Biases
-    wandb.watch(model, criterion=criterion)
+    # # Required to log on Weights & Biases
+    # wandb.watch(model, criterion=criterion)
 
     # Time how long it takes to train the model
     start = time.time()
@@ -45,13 +45,13 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        # Log epoch on Weights & Biases
-        wandb.log({
-            'train_loss': train_epoch_loss,
-            "val_loss": val_epoch_loss,
-            "mIoU": epoch_iou,
-            "dice": epoch_dice,
-        })
+        # # Log epoch on Weights & Biases
+        # wandb.log({
+        #     'train_loss': train_epoch_loss,
+        #     "val_loss": val_epoch_loss,
+        #     "mIoU": epoch_iou,
+        #     "dice": epoch_dice,
+        # })
 
         # Check if current epoch is the best so far and save it as best
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
@@ -157,8 +157,8 @@ def main():
     # Load in command line arguments
     args = command_line_args()
 
-    # Initialise Weights & Biases
-    wandb.init(project="DeepLabV3", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
+    # # Initialise Weights & Biases
+    # wandb.init(project="DeepLabV3", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
 
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -182,9 +182,10 @@ def main():
 
     # Get train and test directory paths
     train_img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    train_mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
+    train_mask_dir = os.path.join(args.data_dir, 'train/white_masks_tiled')
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/white_masks_tiled')
+
 
     # Create custom transform that normalises data
     transform = transforms.Compose([transforms.ToTensor(),
