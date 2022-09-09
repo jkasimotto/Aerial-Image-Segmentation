@@ -14,8 +14,7 @@ import os
 import ssl
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, wandb_enabled,
-          epochs=1):
+def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -30,13 +29,12 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
 
-        if wandb_enabled:
-            wandb.log({
-                'train_loss': train_epoch_loss,
-                "val_loss": val_epoch_loss,
-                "mIoU": epoch_iou,
-                "dice": epoch_dice,
-            })
+        # wandb.log({
+        #     'train_loss': train_epoch_loss,
+        #     "val_loss": val_epoch_loss,
+        #     "mIoU": epoch_iou,
+        #     "dice": epoch_dice,
+        # })
 
         train_loss.append(train_epoch_loss)
         test_loss.append(val_epoch_loss)
@@ -142,8 +140,7 @@ def main():
         'epochs': args.epochs,
     }
 
-    run = wandb.init(project="FCN", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
-    wandb_enabled = run == wandb.run
+    # wandb.init(project="FCN", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
 
     if args.enable_ssl:
         ssl._create_default_https_context = ssl._create_unverified_context
@@ -175,8 +172,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
     criterion = nn.BCEWithLogitsLoss()
 
-    if wandb_enabled:
-        wandb.watch(model, criterion=criterion)
+    # wandb.watch(model, criterion=criterion)
 
     analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
 
@@ -188,8 +184,7 @@ def main():
                   device=device,
                   analyser=analyser,
                   epochs=HYPER_PARAMS['epochs'],
-                  num_classes=HYPER_PARAMS['num_classes'],
-                  wandb_enabled=wandb_enabled)
+                  num_classes=HYPER_PARAMS['num_classes'])
 
     analyser.save_model(model=model,
                         epochs=HYPER_PARAMS['epochs'],
