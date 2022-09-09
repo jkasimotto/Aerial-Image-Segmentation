@@ -12,7 +12,7 @@ import argparse
 import wandb
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, epochs=1, print_every=10):
+def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, epochs=1):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -30,7 +30,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         print(f"[INFO] Epoch {epoch + 1}")
 
         # Get training Loss
-        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device, print_every)
+        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
         # Get Validation Loss, MIOU and DICE for epoch
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
 
@@ -66,7 +66,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     return model
 
 
-def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every):
+def train_one_epoch(model, criterion, optimizer, dataloader, device):
     print('[EPOCH TRAINING]')
     model.train()
     running_loss = 0
@@ -79,8 +79,6 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
         optimizer.step()
         running_loss += loss.item()
 
-        # if (batch + 1) % print_every == 0:
-        #     print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
 
     return running_loss / len(dataloader)
 
@@ -190,7 +188,6 @@ def main():
           test_loader=test_loader,
           device=device,
           epochs=HYPER_PARAMS['EPOCHS'],
-          print_every=10,
           num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
     save_model_2(model=model,
