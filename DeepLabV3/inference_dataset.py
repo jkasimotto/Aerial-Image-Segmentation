@@ -7,10 +7,11 @@ from torchvision import transforms
 
 class InferenceDataset(Dataset):
 
-    def __init__(self, img_dir, transform=None):
+    def __init__(self, img_dir, start_idx, end_idx, transform=None):
         self.img_dir = img_dir
         self.transform = transform
         self.images = [f for f in os.listdir(img_dir) if not f.startswith('.')]
+        self.images = self.images[start_idx:end_idx]
         self.as_tensor = transforms.ToTensor()
 
     def __len__(self):

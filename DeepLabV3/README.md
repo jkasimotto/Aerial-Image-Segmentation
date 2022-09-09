@@ -44,7 +44,7 @@ optional arguments:
 
 Example
 ```commandline
-python DeepLabV3Model.py -c "trial.pt" -b 8 -lr 0.0005 -e 25 -w 2 -n 2 /home/usyd-04a/synthetic/
+python DeepLabV3.py -c "trial.pth" -b 16 -lr 0.0005 -e 25 -w 2 -n 2 /home/usyd-04a/synthetic/
 ```
 ### Checkpoints
 If a checkpoint filename is provided the model with be saved in the directory `/DeepLabV3/checkpoints`.

@@ -12,7 +12,7 @@ import argparse
 import wandb
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, epochs=1):
+def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, checkpoint_dir, checkpoint_name, epochs=1):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -24,7 +24,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     start = time.time()
 
     # Load in class to save best model
-    save_best_model = SaveBestModel()
+    save_best_model = SaveBestModel(checkpoint_dir=checkpoint_dir, checkpoint_name=checkpoint_name)
 
     # Initialise arrays to store training results
     train_loss, test_loss = [], []
@@ -63,12 +63,8 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     end = time.time()
 
     # Create plots for accuracy and loss
-    save_loss_plot(train_loss, test_loss, 'DeepLabV3_loss.png')
-    save_acc_plot(iou_acc, dice_acc, 'DeepLabV3_accuracy.png')
-
-    # Save training results to .csv file
-    excel = np.array([train_loss, test_loss, iou_acc, dice_acc])
-    np.savetxt('/home/usyd-04a/checkpoints/deeplab/deeplab.csv', excel, delimiter=',')
+    save_best_model.save_loss_plot(train_loss, test_loss, 'DeepLabV3_loss.png')
+    save_best_model.save_acc_plot(iou_acc, dice_acc, 'DeepLabV3_accuracy.png')
 
     print(f"\nTraining took: {end - start:.2f}s")
 
@@ -120,7 +116,6 @@ def test(model, criterion, dataloader, device, num_classes):
 
     end = time.time()
 
-
     test_loss = running_loss / len(dataloader)
     iou_acc = np.mean(ious)
     dice_acc = np.mean(dice_scores)
@@ -132,12 +127,13 @@ def test(model, criterion, dataloader, device, num_classes):
 
 
 def command_line_args():
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument("data_dir",
                         help="path to directory containing test and train images")
-    parser.add_argument("-c", "--checkpoint",
+    parser.add_argument("checkpoint_dir",
+                        help="directory for model checkpoint to be saved as")
+    parser.add_argument("-c", '--checkpoint', default="deeplab",
                         help="filename for model checkpoint to be saved as")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
@@ -152,8 +148,8 @@ def command_line_args():
     args = parser.parse_args()
     return args
 
-def main():
 
+def main():
     # Load in command line arguments
     args = command_line_args()
 
@@ -186,17 +182,17 @@ def main():
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/white_masks_tiled')
 
-
     # Create custom transform that normalises data
     transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     # Create object which loads input images and target masks and applies transform
     train_dataset = PlanesDataset(img_dir=train_img_dir, mask_dir=train_mask_dir, transform=transform)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
 
     # Pass dataset to dataloader with predefined arguments
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2,
+                              drop_last=True)
     test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], num_workers=2)
 
     # ----------------------
@@ -207,10 +203,11 @@ def main():
     device_ids = [i for i in range(torch.cuda.device_count())]
 
     # Load model
-    model = nn.DataParallel(torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet101', num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
+    model = nn.DataParallel(
+        torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet101', num_classes=HYPER_PARAMS['NUM_CLASSES']),
+        device_ids=device_ids).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
     loss_fn = nn.BCEWithLogitsLoss()
-
 
     # Train model
     train(model=model,
@@ -220,16 +217,19 @@ def main():
           test_loader=test_loader,
           device=device,
           epochs=HYPER_PARAMS['EPOCHS'],
-          num_classes=HYPER_PARAMS['NUM_CLASSES'])
+          num_classes=HYPER_PARAMS['NUM_CLASSES'],
+          checkpoint_dir=args.checkpoint_dir,
+          checkpoint_name=args.checkpoint)
 
     # Save model after training
-    save_model_2(model=model,
-                 epochs=HYPER_PARAMS['EPOCHS'],
-                 optimizer=optimizer,
-                 criterion=loss_fn,
-                 batch_size=HYPER_PARAMS['BATCH_SIZE'],
-                 lr=HYPER_PARAMS['LR'],
-                 filename=args.checkpoint)
+    save_model(model=model,
+               epochs=HYPER_PARAMS['EPOCHS'],
+               optimizer=optimizer,
+               criterion=loss_fn,
+               batch_size=HYPER_PARAMS['BATCH_SIZE'],
+               lr=HYPER_PARAMS['LR'],
+               checkpoint_dir=args.checkpoint_dir,
+               filename=args.checkpoint)
 
 
 if __name__ == "__main__":
