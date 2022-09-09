@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
-from fastai.vision.all import noop
 
 
 class NoOP(nn.Module):
+    """
+    This class is a Module that performs no operation and is used when the attention layer of the UnetBlock is not specified.
+    """
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -18,14 +21,14 @@ class UnetBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, attn=None) -> None:
         super().__init__()
-        # Set bias to False because we use BatchNorm.
-        # Set in_channels=outchannels in the second convolution to enable composition.
         self.conv = nn.Sequential(
+            # Set bias to False because we use BatchNorm.
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                       kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU(inplace=True),
 
+            # Set in_channels=outchannels to compose with the first conv.
             nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
                       kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=out_channels),
@@ -51,7 +54,7 @@ class UnetEncoder(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
     def forward(self, x):
-        # Maintain the features for skip connections.
+        # Return all features for skip connections.
         x1 = self.encoder1(x)
         x2 = self.encoder2(self.pool(x1))
         x3 = self.encoder3(self.pool(x2))
@@ -64,9 +67,10 @@ class UnetDecoder(nn.Module):
 
     def __init__(self, features, out_channels, attn) -> None:
         super().__init__()
-        # What goes down must come up... in reverse
+        # Reverse features to decode in reverse
         features = features[::-1]
 
+        # The 4 transpose convolutions used in the decoder.
         self.up4 = nn.ConvTranspose2d(
             in_channels=features[0]*2, out_channels=features[0], kernel_size=2, stride=2)
         self.up3 = nn.ConvTranspose2d(
@@ -75,6 +79,7 @@ class UnetDecoder(nn.Module):
             in_channels=features[2]*2, out_channels=features[2], kernel_size=2, stride=2)
         self.up1 = nn.ConvTranspose2d(
             in_channels=features[3]*2, out_channels=features[3], kernel_size=2, stride=2)
+        # The 4 UnetBlocks used in the decoder.
         self.decoder4 = UnetBlock(
             in_channels=features[0]*2, out_channels=features[0], attn=attn)
         self.decoder3 = UnetBlock(
@@ -83,10 +88,12 @@ class UnetDecoder(nn.Module):
             in_channels=features[2]*2, out_channels=features[2], attn=attn)
         self.decoder1 = UnetBlock(
             in_channels=features[3]*2, out_channels=features[3], attn=attn)
+        # The final convolutional layer that outputs a single channel.
         self.final = nn.Conv2d(
             in_channels=features[3], out_channels=out_channels, kernel_size=1)
 
     def forward(self, features):
+        # Pass in the features from the encoder to concatenate as skip connections.
         e1, e2, e3, e4, e5 = features
 
         d5 = self.up4(e5)
