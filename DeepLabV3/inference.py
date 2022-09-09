@@ -6,6 +6,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from inference_dataset import InferenceDataset
 from utils import *
+from torch import nn
 
 
 def show(imgs):
@@ -67,9 +68,9 @@ def main():
     inference_dataset = InferenceDataset(img_dir=args.image_dir, transform=transform)
     inference_loader = DataLoader(inference_dataset, batch_size=1)
 
-    checkpoint = torch.load(args.model)
-    model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', num_classes=2).to(device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model = torch.load(args.model)
+    model = nn.DataParallel(model).to(device)
+
 
     inference(model=model,
               dataloader=inference_loader,
