@@ -64,16 +64,16 @@ This will display the original image with the plane mask overlay.
 
 ### Usage
 ```commandline
-usage: inference.py [-h] [-i INDEX] model image_dir
+usage: inference.py [-h] [-i INDEX] model image_dir prediction_dir
 
 positional arguments:
   model                 checkpoint file for pretrained model
   image_dir             path to directory containing images to run through the model
+  prediction_dir        path to directory to save predictions made by the model
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -i INDEX, --index INDEX
-
 ```
 Example
 ```commandline
