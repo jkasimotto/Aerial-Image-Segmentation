@@ -25,7 +25,7 @@ class PlanesDataset(Dataset):
         image = np.array(Image.open(img_path).convert("RGB")) # Used np.array to use the albumentations library.
         mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
 
-        mask[mask > 0] = 1  # convert white pixels to 1
+        mask[mask > 0] = 1  # convert all non black colours to the 'plane' class pixel
         # color_ids = np.unique(mask)  # find all unique colors in mask
         # masks = mask == color_ids[:, None, None]
         # masks = torch.as_tensor(masks, dtype=torch.float32)
