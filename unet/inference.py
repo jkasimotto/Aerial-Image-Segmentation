@@ -10,7 +10,9 @@ from torch import nn
 from torchvision.io import ImageReadMode, read_image
 from torchvision.utils import draw_segmentation_masks, make_grid
 
-from model import UNET
+# from model import UNET
+# Need to use the old model of UNET because that's what ran for 4 epochs on the SC
+from model2 import UNET
 
 
 def show(images):
@@ -43,14 +45,10 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     checkpoint = torch.load(args.model)
-    # print(checkpoint["model_state_dict"].keys())
     
-    # print(checkpoint["model_state_dict"].keys())
     model = UNET(in_channels=3, out_channels=1)
-    model = nn.DataParallel(model).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    # model.load_state_dict(checkpoint['model_state_dict']) # This is the new version following FCN.
-    # model.load_state_dict(checkpoint['state_dict']) # This is the old version.
+    # model = nn.DataParallel(model).to(device)
+    model.load_state_dict(checkpoint["state_dict"])
 
     normalisation_factor = 1 / 255
 
@@ -64,19 +62,14 @@ def main():
 
         # Get mask prediction for model
         with torch.inference_mode():
-            output = model(image)
-            # print(output[0,0,0,:2])
-            output = output.softmax(dim=1).argmax(dim=1) > 0
-            # output = (torch.sigmoid(output) > 0.5).float()
-        # print(output.shape)
-
-        # print(torch.sum(output))
+            prediction = model(image).squeeze(dim=1)
+            prediction = torch.sigmoid(prediction) > 0.5
 
         image = image * (normalisation_factor ** -1)
 
         # Draw segmentation mask on top of image
         image = image.squeeze(0).type(torch.uint8)
-        image_with_mask = draw_segmentation_masks(image=image, masks=output, colors="red", alpha=0.5)
+        image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.5)
         masked_images.append(image_with_mask)
 
     grid = make_grid(masked_images)
