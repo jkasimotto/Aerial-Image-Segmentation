@@ -17,15 +17,20 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     print("| Training Model |")
     print("==================\n")
 
+    # Required to log on Weights & Biases
     wandb.watch(model, criterion=criterion)
 
+    # Time how long it takes to train the model
     start = time.time()
 
+    # Load in class to save best model
     save_best_model = SaveBestModel()
+
+    # Initialise arrays to store training results
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
 
-
+    ##### TRAINING LOOP #####
     for epoch in range(epochs):
         print(f"[INFO] Epoch {epoch + 1}")
 
@@ -40,6 +45,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
+        # Log epoch on Weights & Biases
         wandb.log({
             'train_loss': train_epoch_loss,
             "val_loss": val_epoch_loss,
@@ -47,6 +53,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
             "dice": epoch_dice,
         })
 
+        # Check if current epoch is the best so far and save it as best
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
         print(
@@ -55,9 +62,11 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
 
     end = time.time()
 
+    # Create plots for accuracy and loss
     save_loss_plot(train_loss, test_loss, 'DeepLabV3_loss.png')
     save_acc_plot(iou_acc, dice_acc, 'DeepLabV3_accuracy.png')
 
+    # Save training results to .csv file
     excel = np.array([train_loss, test_loss, iou_acc, dice_acc])
     np.savetxt('/home/usyd-04a/checkpoints/deeplab/deeplab.csv', excel, delimiter=',')
 
@@ -68,8 +77,12 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
 
 def train_one_epoch(model, criterion, optimizer, dataloader, device):
     print('[EPOCH TRAINING]')
+
+    # Set model in training mode
     model.train()
     running_loss = 0
+
+    # Calculate loss per batch
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
         images, labels = images.to(device), labels.to(device)
         prediction = model(images)['out']
@@ -79,16 +92,20 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device):
         optimizer.step()
         running_loss += loss.item()
 
-
+    # Return average loss for the epoch
     return running_loss / len(dataloader)
 
 
 def test(model, criterion, dataloader, device, num_classes):
     print("[VALIDATING]")
-    ious, dice_scores = list(), list()
+
+    # Set model in evaluation mode
     model.eval()
+    ious, dice_scores = list(), list()
     start = time.time()
     running_loss = 0
+
+    # Calculate test loss, IoU and Dice coefficient accuracy measures
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
@@ -103,17 +120,21 @@ def test(model, criterion, dataloader, device, num_classes):
 
     end = time.time()
 
+
     test_loss = running_loss / len(dataloader)
     iou_acc = np.mean(ious)
     dice_acc = np.mean(dice_scores)
 
     print(f"Accuracy: mIoU= {iou_acc * 100:.3f}%, dice= {dice_acc * 100:.3f}%")
 
+    # Return test loss, IoU and Dice coefficient for the epoch
     return test_loss, iou_acc, dice_acc
 
 
 def command_line_args():
+
     parser = argparse.ArgumentParser()
+
     parser.add_argument("data_dir",
                         help="path to directory containing test and train images")
     parser.add_argument("-c", "--checkpoint",
@@ -132,8 +153,11 @@ def command_line_args():
     return args
 
 def main():
+
+    # Load in command line arguments
     args = command_line_args()
 
+    # Initialise Weights & Biases
     wandb.init(project="DeepLabV3", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
 
     # Use GPU if available
@@ -156,17 +180,21 @@ def main():
     # CREATE DATASET
     # ----------------------
 
+    # Get train and test directory paths
     train_img_dir = os.path.join(args.data_dir, 'train/images_tiled')
     train_mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
+    # Create custom transform that normalises data
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
 
+    # Create object which loads input images and target masks and applies transform
     train_dataset = PlanesDataset(img_dir=train_img_dir, mask_dir=train_mask_dir, transform=transform)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
 
+    # Pass dataset to dataloader with predefined arguments
     train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2, drop_last=True)
     test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], num_workers=2)
 
@@ -174,13 +202,16 @@ def main():
     # DEFINE MODEL
     # ----------------------
 
+    # Setup multiprocessing
     device_ids = [i for i in range(torch.cuda.device_count())]
-    model = nn.DataParallel(torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
+
+    # Load model
+    model = nn.DataParallel(torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet101', num_classes=HYPER_PARAMS['NUM_CLASSES']), device_ids=device_ids).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
     loss_fn = nn.BCEWithLogitsLoss()
 
 
-
+    # Train model
     train(model=model,
           criterion=loss_fn,
           optimizer=optimizer,
@@ -190,6 +221,7 @@ def main():
           epochs=HYPER_PARAMS['EPOCHS'],
           num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
+    # Save model after training
     save_model_2(model=model,
                  epochs=HYPER_PARAMS['EPOCHS'],
                  optimizer=optimizer,
