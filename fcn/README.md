@@ -22,14 +22,16 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: fcn.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir checkpoint
+usage: fcn.py [-h] [-run RUN_NAME] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-ssl] data_dir checkpoint_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
-  checkpoint            path to directory for model checkpoint to be saved
+  checkpoint_dir        path to directory for model checkpoint to be saved
 
 options:
   -h, --help            show this help message and exit
+  -run RUN_NAME, --run-name RUN_NAME
+                        used for naming output files. default="fcn"
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
   -lr LEARNING_RATE, --learning-rate LEARNING_RATE
@@ -40,6 +42,8 @@ options:
                         number of workers used in the dataloader
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
+  -ssl, --enable-ssl    if model download from pytorch fails, enable this flag
+
 
 ```
 ### Outputs
