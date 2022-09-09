@@ -11,5 +11,4 @@ pandas==1.4.3
 boto3==1.24.60
 botocore==1.27.60
 wandb==0.13.2
-fastai==2.7.9
 timm==0.6.7
