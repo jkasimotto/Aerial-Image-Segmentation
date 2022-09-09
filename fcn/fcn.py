@@ -1,5 +1,5 @@
 from torchmetrics.functional import jaccard_index, dice
-from utils import *
+from utils import ModelAnalyzer
 from torchvision.models.segmentation import fcn_resnet101
 from torch.utils.data import DataLoader
 import torch.profiler
@@ -10,23 +10,22 @@ from tqdm import tqdm
 import time
 import argparse
 import wandb
+import os
 
 
-def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, checkpoint_dir,
-          epochs=1, print_every=10):
+def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, analyser, epochs=1):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
 
     start = time.time()
 
-    save_best_model = SaveBestModel(checkpoint_dir=checkpoint_dir)
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
     for epoch in range(epochs):
         print(f"[INFO] Epoch {epoch + 1}")
 
-        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device, print_every)
+        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
         scheduler.step()
 
@@ -42,7 +41,7 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
+        analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
         print(
             f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
@@ -50,15 +49,15 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
 
     end = time.time()
 
-    save_loss_plot(train_loss, test_loss, os.path.join(checkpoint_dir, 'fcn_loss.png'))
-    save_acc_plot(iou_acc, dice_acc, os.path.join(checkpoint_dir, 'fcn_accuracy.png'))
+    analyser.save_loss_plot(train_loss, test_loss)
+    analyser.save_acc_plot(iou_acc, dice_acc)
 
     print(f"\nTraining took: {end - start:.2f}s")
 
     return model
 
 
-def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every):
+def train_one_epoch(model, criterion, optimizer, dataloader, device):
     print('[EPOCH TRAINING]')
     model.train()
     running_loss = 0
@@ -71,9 +70,6 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
         optimizer.step()
         running_loss += loss.item()
 
-        # if (batch + 1) % print_every == 0:
-        #     print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
-
     return running_loss / len(dataloader)
 
 
@@ -81,7 +77,6 @@ def test(model, criterion, dataloader, device, num_classes):
     print("[VALIDATING]")
     ious, dice_scores = list(), list()
     model.eval()
-    start = time.time()
     running_loss = 0
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
@@ -94,8 +89,6 @@ def test(model, criterion, dataloader, device, num_classes):
             iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
             dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
-
-    end = time.time()
 
     test_loss = running_loss / len(dataloader)
     iou_acc = np.mean(ious)
@@ -110,7 +103,7 @@ def command_line_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("data_dir",
                         help="path to directory containing test and train images")
-    parser.add_argument("checkpoint",
+    parser.add_argument("checkpoint_dir",
                         help="path to directory for model checkpoint to be saved")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
@@ -144,7 +137,7 @@ def main():
     wandb.config = HYPER_PARAMS
 
     # Set up Weights and Biases
-    wandb.init(project="FCN", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
+    wandb.init(project="FCN", entity="usyd-04a", config=wandb.config)
 
     # Needed to download model from internet
     # ssl._create_default_https_context = ssl._create_unverified_context
@@ -179,6 +172,8 @@ def main():
 
     wandb.watch(model, criterion=criterion)
 
+    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint)
+
     model = train(model=model,
                   criterion=criterion,
                   optimizer=optimizer,
@@ -186,18 +181,16 @@ def main():
                   train_loader=train_loader,
                   test_loader=test_loader,
                   device=device,
-                  checkpoint_dir=args.checkpoint,
+                  analyser=analyser,
                   epochs=HYPER_PARAMS['epochs'],
-                  print_every=30,
                   num_classes=HYPER_PARAMS['num_classes'])
 
-    save_model(model=model,
-               epochs=HYPER_PARAMS['epochs'],
-               optimizer=optimizer,
-               criterion=criterion,
-               batch_size=HYPER_PARAMS['batch_size'],
-               lr=HYPER_PARAMS['learning_rate'],
-               filepath=os.path.join(args.checkpoint, 'fcn_final_epoch.pth'))
+    analyser.save_model(model=model,
+                        epochs=HYPER_PARAMS['epochs'],
+                        optimizer=optimizer,
+                        criterion=criterion,
+                        batch_size=HYPER_PARAMS['batch_size'],
+                        lr=HYPER_PARAMS['learning_rate'])
 
 
 if __name__ == "__main__":
