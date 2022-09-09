@@ -10,6 +10,8 @@ from torch import nn
 from torchvision.io import ImageReadMode, read_image
 from torchvision.utils import draw_segmentation_masks, make_grid
 
+# from model import UNET
+# Need to use the old model of UNET because that's what ran for 4 epochs on the SC
 from model2 import UNET
 
 
@@ -45,8 +47,8 @@ def main():
     checkpoint = torch.load(args.model)
     
     model = UNET(in_channels=3, out_channels=1)
-    model = nn.DataParallel(model).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    # model = nn.DataParallel(model).to(device)
+    model.load_state_dict(checkpoint["state_dict"])
 
     normalisation_factor = 1 / 255
 
@@ -57,19 +59,17 @@ def main():
         img_path = os.path.join(args.image_dir, filename)
         image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
         image = image.float().unsqueeze(0)
-        print(image.shape)
 
         # Get mask prediction for model
         with torch.inference_mode():
-            output = model(image).squeeze(dim=1)
-            print(output.shape, output[0,0,0])
-            output = torch.sigmoid(output) > 0.5
+            prediction = model(image).squeeze(dim=1)
+            prediction = torch.sigmoid(prediction) > 0.5
 
         image = image * (normalisation_factor ** -1)
 
         # Draw segmentation mask on top of image
         image = image.squeeze(0).type(torch.uint8)
-        image_with_mask = draw_segmentation_masks(image=image, masks=output, colors="red", alpha=0.5)
+        image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.5)
         masked_images.append(image_with_mask)
 
     grid = make_grid(masked_images)
