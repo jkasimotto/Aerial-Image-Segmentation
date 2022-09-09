@@ -78,15 +78,11 @@ def test(model, criterion, dataloader, device, num_classes):
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
-            print(torch.unique(labels))
             prediction = model(images)['out']
             loss = criterion(prediction, labels)
             running_loss += loss.item()
             prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
             labels = labels.argmax(dim=1)  # (batch_size, w, h)
-            print(prediction.shape,prediction.dtype)
-            print(labels.shape, labels.dtype)
-            print(num_classes)
             iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
             dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
