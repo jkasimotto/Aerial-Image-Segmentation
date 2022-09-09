@@ -22,7 +22,7 @@ from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
 
 
 def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loader, num_classes, device, epochs=1,
-          print_every=10):
+          print_every=10, use_wandb=False):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -46,12 +46,13 @@ def train(model, criterion, optimizer, scaler, scheduler, train_loader, test_loa
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        wandb.log({
-            'epoch loss': train_epoch_loss,
-            "test loss": val_epoch_loss,
-            "epoch iou": epoch_iou,
-            "epoch dice": epoch_dice,
-        })
+        if use_wandb:
+            wandb.log({
+                'epoch loss': train_epoch_loss,
+                "test loss": val_epoch_loss,
+                "epoch iou": epoch_iou,
+                "epoch dice": epoch_dice,
+            })
 
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
@@ -75,24 +76,17 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, device, pri
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
         images, labels = images.to(device), labels.to(device)
-        # print(images.shape)
-        # print(labels.shape)
-        with torch.cuda.amp.autocast():
-            # UNET outputs a single channel, we can remove it.
-            print("PREDICTING!")
-            prediction = model(images).squeeze(1)  # (Batch, H, W)
-            # print(prediction.shape)
-            # print(labels.shape)
-            loss = criterion(prediction, labels)
+        prediction = model(images).squeeze(dim=1)
+        loss = criterion(prediction, labels)
         optimizer.zero_grad()
-        scaler.scale(loss).backward()  # Updates mixed precision weights
-        scaler.step(optimizer)
-        scaler.update()
+        loss.backward()
+        optimizer.step()
         running_loss += loss.item()
 
-        if (batch + 1) % print_every == 0:
-            print(
-                f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+        # if (batch + 1) % print_every == 0:
+        #     print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+
+    return running_loss / len(dataloader)
 
     return running_loss / len(dataloader)
 
@@ -146,12 +140,14 @@ def command_line_args():
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
                         help="number of classes for semantic segmentation")
+    parser.add_argument("--use-wandb", default=False, help="Whether to log on wandb")
     args = parser.parse_args()
     return args
 
 
 def main():
     args = command_line_args()
+
 
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -171,9 +167,10 @@ def main():
         'PIN_MEMORY': True
     }
 
-    wandb.config = HYPER_PARAMS
-    wandb.init(project="UNET", entity="usyd-04a",
-               config=wandb.config, dir="./wandb_data")
+    if args.use_wandb:
+        wandb.config = HYPER_PARAMS
+        wandb.init(project="UNET", entity="usyd-04a",
+                config=wandb.config, dir="./wandb_data")
 
     # ----------------------
     # CREATE DATASET
@@ -233,7 +230,8 @@ def main():
     scaler = torch.cuda.amp.GradScaler()
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-    wandb.watch(model, criterion=criterion)
+    if args.use_wandb:
+        wandb.watch(model, criterion=criterion)
 
     model = train(model,
                   criterion=criterion,
