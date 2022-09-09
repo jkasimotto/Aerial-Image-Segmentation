@@ -5,10 +5,11 @@ import os
 
 class ModelAnalyzer:
 
-    def __init__(self, checkpoint_dir):
+    def __init__(self, checkpoint_dir, run_name):
         self.best_valid_loss = float('inf')
         self.best_accuracy = 0
         self.checkpoint_dir = checkpoint_dir
+        self.run_name = run_name
 
     def save_best_model(self, current_valid_loss, current_accuracy, epoch, model, optimizer, criterion):
         if current_valid_loss < self.best_valid_loss:
@@ -21,7 +22,7 @@ class ModelAnalyzer:
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': criterion,
-            }, os.path.join(self.checkpoint_dir, 'fcn_loss.pth'))
+            }, os.path.join(self.checkpoint_dir, f'{self.run_name}_loss.pth'))
         if current_accuracy > self.best_accuracy:
             self.best_accuracy = current_accuracy
             print(f"Best accuracy (mIoU): {self.best_accuracy:.3f}")
@@ -32,7 +33,7 @@ class ModelAnalyzer:
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': criterion,
-            }, os.path.join(self.checkpoint_dir, 'fcn_acc.pth'))
+            }, os.path.join(self.checkpoint_dir, f'{self.run_name}_acc.pth'))
 
     def save_loss_plot(self, train_loss, test_loss):
         plt.figure(figsize=(10, 7))
@@ -47,7 +48,7 @@ class ModelAnalyzer:
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(os.path.join(self.checkpoint_dir, 'fcn_loss.png'))
+        plt.savefig(os.path.join(self.checkpoint_dir, f'{self.run_name}_loss.png'))
 
     def save_acc_plot(self, iou_acc, dice_acc):
         plt.figure(figsize=(10, 7))
@@ -62,10 +63,10 @@ class ModelAnalyzer:
         plt.xlabel('Epochs')
         plt.ylabel('Accuracy')
         plt.legend()
-        plt.savefig(os.path.join(self.checkpoint_dir, 'fcn_acc.png'))
+        plt.savefig(os.path.join(self.checkpoint_dir, f'{self.run_name}_acc.png'))
 
     def save_model(self, model, epochs, optimizer, criterion, batch_size, lr):
-        path = os.path.join(self.checkpoint_dir, 'fcn_final_epoch.pth')
+        path = os.path.join(self.checkpoint_dir, f'{self.run_name}_final_epoch.pth')
         torch.save({
             'epoch': epochs,
             'model_state_dict': model.state_dict(),

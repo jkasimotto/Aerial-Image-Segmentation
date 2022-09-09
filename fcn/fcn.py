@@ -1,5 +1,5 @@
 from torchmetrics.functional import jaccard_index, dice
-from utils import ModelAnalyzer
+from model_analyzer import ModelAnalyzer
 from torchvision.models.segmentation import fcn_resnet101
 from torch.utils.data import DataLoader
 import torch.profiler
@@ -11,9 +11,10 @@ import time
 import argparse
 import wandb
 import os
+import ssl
 
 
-def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, analyser, epochs=1):
+def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -27,14 +28,13 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
 
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
-        scheduler.step()
 
-        wandb.log({
-            'train_loss': train_epoch_loss,
-            "val_loss": val_epoch_loss,
-            "mIoU": epoch_iou,
-            "dice": epoch_dice,
-        })
+        # wandb.log({
+        #     'train_loss': train_epoch_loss,
+        #     "val_loss": val_epoch_loss,
+        #     "mIoU": epoch_iou,
+        #     "dice": epoch_dice,
+        # })
 
         train_loss.append(train_epoch_loss)
         test_loss.append(val_epoch_loss)
@@ -84,8 +84,8 @@ def test(model, criterion, dataloader, device, num_classes):
             prediction = model(images)['out']
             loss = criterion(prediction, labels)
             running_loss += loss.item()
-            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
-            labels = labels.argmax(dim=1)  # (batch_size, w, h)
+            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
+            labels = labels.argmax(dim=1)
             iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
             dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
@@ -105,6 +105,8 @@ def command_line_args():
                         help="path to directory containing test and train images")
     parser.add_argument("checkpoint_dir",
                         help="path to directory for model checkpoint to be saved")
+    parser.add_argument("-run", "--run-name", default="fcn",
+                        help="used for naming output files")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
     parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
@@ -115,12 +117,16 @@ def command_line_args():
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
                         help="number of classes for semantic segmentation")
+    parser.add_argument("-ssl", "--enable-ssl",
+                        help="if model download from pytorch fails, enable this flag", action='store_true')
     args = parser.parse_args()
     return args
 
 
 def main():
     args = command_line_args()
+
+    print(f'Starting run: {args.run_name}\n')
 
     # ----------------------
     # DEFINE HYPER PARAMETERS
@@ -134,13 +140,11 @@ def main():
         'epochs': args.epochs,
     }
 
-    wandb.config = HYPER_PARAMS
+    # wandb.config = HYPER_PARAMS
+    # wandb.init(project="FCN", entity="usyd-04a", config=wandb.config)
 
-    # Set up Weights and Biases
-    wandb.init(project="FCN", entity="usyd-04a", config=wandb.config)
-
-    # Needed to download model from internet
-    # ssl._create_default_https_context = ssl._create_unverified_context
+    if args.enable_ssl:
+        ssl._create_default_https_context = ssl._create_unverified_context
 
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -167,17 +171,15 @@ def main():
     device_ids = [i for i in range(torch.cuda.device_count())]
     model = nn.DataParallel(fcn_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criterion = nn.BCEWithLogitsLoss()
 
-    wandb.watch(model, criterion=criterion)
+    # wandb.watch(model, criterion=criterion)
 
-    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint)
+    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
 
     model = train(model=model,
                   criterion=criterion,
                   optimizer=optimizer,
-                  scheduler=scheduler,
                   train_loader=train_loader,
                   test_loader=test_loader,
                   device=device,
