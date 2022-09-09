@@ -20,12 +20,13 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: DeepLabV3Model.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir
+usage: DeepLabV3.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir checkpoint_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
+  checkpoint_dir        directory for model checkpoint to be saved as
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -c CHECKPOINT, --checkpoint CHECKPOINT
                         filename for model checkpoint to be saved as
@@ -40,14 +41,13 @@ optional arguments:
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
 
+
 ```
 
 Example
 ```commandline
-python DeepLabV3.py -c "trial.pth" -b 16 -lr 0.0005 -e 25 -w 2 -n 2 /home/usyd-04a/synthetic/
+python DeepLabV3.py -c "trial.pth" -b 16 -lr 0.0005 -e 2 -w 2 -n 2 /home/usyd-04a/synthetic/ /home/usyd-04a/checkpoints/deeplab
 ```
-### Checkpoints
-If a checkpoint filename is provided the model with be saved in the directory `/DeepLabV3/checkpoints`.
 
 ---
 
@@ -78,7 +78,7 @@ optional arguments:
 
 Example
 ```commandline
-python inference.py ./checkpoints/deepLabV3.pt /home/usyd-04a/synthetic/test/images/ -s 0 -e 1
+python inference.py /home/usyd-04a/checkpoints/deeplab/trial.pth /home/usyd-04a/synthetic/test/images/ -s 0 -e 1
 ```
 
 ### Output
