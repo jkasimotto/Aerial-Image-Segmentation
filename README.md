@@ -4,13 +4,13 @@ USYD-04A / COMP3888_W08_02
 ---
 
 ## Table of Contents
-1. [Overview](##Overview)
-      1. [Model Catalog](###Model-Catalog)
-      2. [The Rareplanes Dataset](###The-Rareplanes-Dataset)
-2. [Getting Started](##Getting-Started)
-      1. [Prerequisites](###Prerequisites)
-      2. [Installation](###Installation)
-3. [Usage](##Usage)
+1. [Overview](./README.md#overview)
+      1. [Model Catalog](./README.md#model-catalog)
+      2. [The Rareplanes Dataset](./README.md#the-rareplanes-dataset)
+2. [Getting Started](./README.md#getting-Started)
+      1. [Prerequisites](./README.md#prerequisites)
+      2. [Installation](./README.md#installation)
+3. [Usage](./README.md#usage)
 
 ---
 
