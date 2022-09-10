@@ -1,5 +1,24 @@
-# COMP3888_W08_02
-This project implements four image segmentation models (FCN, DeepLabV3, UNET, MaskRCNN) to be trained on the [Rareplanes dataset](https://www.cosmiqworks.org/rareplanes/).
+# Build the best AI: Aerial Imaging
+USYD-04A / COMP3888_W08_02
+
+---
+
+## Overview
+This project investigates the [Rareplanes dataset](https://www.cosmiqworks.org/rareplanes/) and benchmarks the
+performance of various semantic / instance segmentation machine learning models.
+
+### Model Catalog
+- [x] Fully Convolutional Network (FCN)
+- [x] DeepLabV3
+- [x] UNet
+- [x] Mask R-CNN
+
+### The Rareplanes Dataset
+The Rareplanes dataset is an open-source dataset from CosmiQ Works and AI.Reverie which incorporates
+both real and synthetic data of satellite imagery. The satellite images are aerial images of various
+aircraft, i.e. jets and passenger planes. Our project focuses on the use of the synthetically generated images.
+
+![Image](assets/rareplanes_synthetic.png "Rareplanes synthetic data example")
 
 ---
 
