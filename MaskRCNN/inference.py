@@ -72,21 +72,24 @@ def main():
         img_path = os.path.join(args.image_dir, filename)
         image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
         image = image.float().unsqueeze(0)
-
+        
         # Get mask prediction for model
         with torch.inference_mode():
-            output = model(image)['masks']
-            output = output.softmax(dim=1).argmax(dim=1) > 0
-
-        image = image * (normalisation_factor ** -1)
+            output = model(image)
+            image = image * (normalisation_factor ** -1)
+            image = image.squeeze(0).type(torch.uint8)
+            for instance in output:
+                op = instance["masks"]
+                op = op.softmax(dim=1).argmax(dim=1) > 0
+                image = draw_segmentation_masks(image=image, masks=op)
 
         # Draw segmentation mask on top of image
-        image = image.squeeze(0).type(torch.uint8)
-        image_with_mask = draw_segmentation_masks(image=image, masks=output, colors="red")
-        masked_images.append(image_with_mask)
+        masked_images.append(image)
 
-    grid = make_grid(masked_images)
-    show(grid)
+    for masked_image in masked_images:
+        show(masked_image)
+    #grid = make_grid(masked_images)
+    #show(grid)
 
 
 if __name__ == "__main__":
