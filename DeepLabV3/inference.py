@@ -6,6 +6,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from inference_dataset import InferenceDataset
 from utils import *
+from torch import nn
 
 
 def show(imgs):
@@ -20,7 +21,7 @@ def show(imgs):
     plt.show()
 
 
-def inference(model, dataloader, device, image_idx):
+def inference(model, dataloader, device):
     print("\n=================")
     print("| Show Predictions |")
     print("=================\n")
@@ -29,20 +30,19 @@ def inference(model, dataloader, device, image_idx):
     model.eval()
     with torch.inference_mode():
         for idx, (normalised_image, images) in enumerate(dataloader):
-            if idx >= image_idx[0] and idx < image_idx[1]:
 
-                normalised_image = normalised_image.to(device)
+            normalised_image = normalised_image.to(device)
 
-                # Do Prediction
-                prediction = model(normalised_image)['out']
-                prediction = prediction.softmax(dim=1).argmax(dim=1) > 0
+            # Do Prediction
+            prediction = model(normalised_image)['out']
+            prediction = prediction.softmax(dim=1).argmax(dim=1) > 0
 
-                # Squeeze Image
-                image = images[0] * 255
-                image = image.type(torch.uint8).cpu()
+            # Squeeze Image
+            image = images[0] * 255
+            image = image.type(torch.uint8).cpu()
 
-                image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.5)
-                masked_images.append(image_with_mask)
+            image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.7)
+            masked_images.append(image_with_mask)
 
     grid = make_grid(masked_images)
     show(grid)
@@ -59,22 +59,21 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
-    image_idx = [args.start_index, args.end_index]
-
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    inference_dataset = InferenceDataset(img_dir=args.image_dir, transform=transform)
+    inference_dataset = InferenceDataset(img_dir=args.image_dir, start_idx=args.start_index, end_idx=args.end_index, transform=transform)
     inference_loader = DataLoader(inference_dataset, batch_size=1)
 
     checkpoint = torch.load(args.model)
-    model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', num_classes=2).to(device)
+    model = nn.DataParallel(
+        torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet101', num_classes=2)).to(device)
     model.load_state_dict(checkpoint['model_state_dict'])
+
 
     inference(model=model,
               dataloader=inference_loader,
-              device=device,
-              image_idx=image_idx)
+              device=device)
 
 
 if __name__ == "__main__":

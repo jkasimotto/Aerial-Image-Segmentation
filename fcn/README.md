@@ -22,14 +22,16 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: fcn.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir checkpoint
+usage: fcn.py [-h] [-run RUN_NAME] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-ssl] data_dir checkpoint_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
-  checkpoint            path to directory for model checkpoint to be saved
+  checkpoint_dir        path to directory for model checkpoint to be saved
 
 options:
   -h, --help            show this help message and exit
+  -run RUN_NAME, --run-name RUN_NAME
+                        used for naming output files. default="fcn"
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
   -lr LEARNING_RATE, --learning-rate LEARNING_RATE
@@ -40,10 +42,12 @@ options:
                         number of workers used in the dataloader
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
+  -ssl, --enable-ssl    if model download from pytorch fails, enable this flag
+
 
 ```
 ### Outputs
-Model checkpoints and graphs will be saved in the `checkpoint` directory. Five outputs should be produced which include
+Model checkpoints and graphs will be saved in the `checkpoint_dir` directory. Given a run name of 'fcn', five outputs should be produced which include
 the following:
 
 * 'fcn_loss.pth' - model with the best validation from all epochs
@@ -55,25 +59,28 @@ the following:
 ---
 
 ## Making Predictions (Inference)
-After training the model on a dataset, predictions can bew made on a set of images using the `inference.py` script.
-This will display the original image with the plane mask overlay.
+After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
+This will produce a new image which is the original image with a plane mask overlay.
 
 ### Usage
 ```commandline
-usage: inference.py [-h] [-i INDEX] model image_dir
+usage: inference.py [-h] [-i INDEX] model image_dir prediction_dir
 
 positional arguments:
   model                 checkpoint file for pretrained model
   image_dir             path to directory containing images to run through the model
+  prediction_dir        path to directory to save predictions made by the model
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -i INDEX, --index INDEX
-
 ```
 Example
 ```commandline
 python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/
+```
+```commandline
+python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ -i 1
 ```
 
 ### Output
