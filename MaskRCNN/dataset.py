@@ -29,15 +29,20 @@ class PlanesDataset(Dataset):
         # with 0 being background
         mask = Image.open(mask_path).convert("L")
         # convert the PIL Image into a numpy array
-        mask = np.array(mask)
+        mask  = seg_mask = np.array(mask)
+        seg_mask[seg_mask > 0] = 1  # convert white pixels to 1
         # instances are encoded as different colors
         obj_ids = np.unique(mask) # unique elements of mask in ascending order
+        seg_obj_ids = np.unique(mask)  # unique elements of mask in ascending order
         # first id is the background, so remove it
         obj_ids = obj_ids[1:]
+        seg_obj_ids = seg_obj_ids[1:]
+
 
         # split the color-encoded mask into a set
         # of binary masks
         masks = mask == obj_ids[:, None, None]
+        seg_masks = seg_mask == seg_obj_ids[:, None, None]
 
         # get bounding box coordinates for each mask
         boxes = []
@@ -53,12 +58,14 @@ class PlanesDataset(Dataset):
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.ones(len(obj_ids), dtype=torch.int64) # there is only one class
         masks = torch.as_tensor(masks, dtype=torch.uint8)
+        seg_masks = torch.as_tensor(seg_masks, dtype=torch.uint8)
 
-        # create the targe dict for training
+        # create the target dict for training
         target = {
                 "boxes": boxes,
                 "labels": labels,
                 "masks": masks,
+                "seg_mask": seg_masks,
         }
 
         return img, target

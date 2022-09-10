@@ -1,7 +1,28 @@
+import argparse
 import matplotlib.pyplot as plt
 import torch
 import os
 import torch.distributed as dist
+
+
+def command_line_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_dir",
+                        help="path to directory containing test and train images")
+    parser.add_argument("checkpoint",
+                        help="path to directory for model checkpoint to be saved")
+    parser.add_argument("-b", '--batch-size', default=16, type=int,
+                        help="dataloader batch size")
+    parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
+                        help="learning rate to be applied to the model")
+    parser.add_argument("-e", "--epochs", default=1, type=int,
+                        help="number of epochs to train the model for")
+    parser.add_argument("-w", "--workers", default=2, type=int,
+                        help="number of workers used in the dataloader")
+    parser.add_argument("-n", "--num-classes", default=2, type=int,
+                        help="number of classes for semantic segmentation")
+    args = parser.parse_args()
+    return args
 
 
 class SaveBestModel:
@@ -11,18 +32,7 @@ class SaveBestModel:
         self.best_accuracy = 0
         self.checkpoint_dir = checkpoint_dir
 
-    def __call__(self, current_valid_loss, current_accuracy, epoch, model, optimizer, criterion):
-        if current_valid_loss < self.best_valid_loss:
-            self.best_valid_loss = current_valid_loss
-            print(f"Best validation loss: {self.best_valid_loss:.3f}")
-            print(f"Saving best loss model for epoch: {epoch + 1}")
-            torch.save({
-                'epoch': epoch + 1,
-                'accuracy': self.best_accuracy,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': criterion,
-            }, os.path.join(self.checkpoint_dir, 'fcn_loss.pth'))
+    def __call__(self, current_accuracy, epoch, model, optimizer):
         if current_accuracy > self.best_accuracy:
             self.best_accuracy = current_accuracy
             print(f"Best accuracy (mIoU): {self.best_accuracy:.3f}")
@@ -32,19 +42,14 @@ class SaveBestModel:
                 'accuracy': self.best_accuracy,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'loss': criterion,
             }, os.path.join(self.checkpoint_dir, 'fcn_acc.pth'))
 
 
-def save_loss_plot(train_loss, test_loss, filepath):
+def save_loss_plot(train_loss, filepath):
     plt.figure(figsize=(10, 7))
     plt.plot(
         train_loss, color='orange', linestyle='-',
         label='train loss'
-    )
-    plt.plot(
-        test_loss, color='red', linestyle='-',
-        label='test loss'
     )
     plt.xlabel('Epochs')
     plt.ylabel('Loss')

@@ -1,13 +1,12 @@
-import argparse
 import matplotlib.pyplot as plt
 import math
 import numpy as np
 import os
 from tqdm import tqdm
+from torchmetrics.functional import jaccard_index, dice
 
 from dataset import PlanesDataset
-from utils import SaveBestModel
-from utils import collate_fn
+from utils import *
 
 import torch
 import torch.optim as optim
@@ -17,40 +16,23 @@ from torch.utils.data import DataLoader
 from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 
 
-def command_line_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("data_dir",
-                        help="path to directory containing test and train images")
-    parser.add_argument("checkpoint",
-                        help="path to directory for model checkpoint to be saved")
-    parser.add_argument("-b", '--batch-size', default=16, type=int,
-                        help="dataloader batch size")
-    parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
-                        help="learning rate to be applied to the model")
-    parser.add_argument("-e", "--epochs", default=1, type=int,
-                        help="number of epochs to train the model for")
-    parser.add_argument("-w", "--workers", default=2, type=int,
-                        help="number of workers used in the dataloader")
-    parser.add_argument("-n", "--num-classes", default=2, type=int,
-                        help="number of classes for semantic segmentation")
-    args = parser.parse_args()
-    return args
-
-
-# needs to be updated
 def train_one_epoch(model, optimizer, dataloader, device, print_every):
     print('[EPOCH TRAINING]')
     model.train()
 
     running_loss = 0
-    for batch, (images, targets) in enumerate(tqdm(dataloader)):
+    #for batch, (images, targets) in enumerate(tqdm(dataloader)):
+    for batch, (images, targets) in enumerate(dataloader):
+        # send the images and targets to the model
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         loss_dict = model(images, targets)
+        # sum the classification and regression losses for
+        # RPN and R-CNN, and the mask loss
         losses = sum(loss for loss in loss_dict.values())
-
         loss_value = losses.item()
+        running_loss += loss_value
 
         if not math.isfinite(loss_value):
             print(f"Loss is {loss_value}, stopping training")
@@ -61,37 +43,44 @@ def train_one_epoch(model, optimizer, dataloader, device, print_every):
         losses.backward()
         optimizer.step()
 
-        #if (batch + 1) % print_every == 0:
-        #    print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss.item():.4f}")
+        if (batch + 1) % print_every == 0:
+            print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss_value:.4f}")
 
-    return loss_value / len(dataloader)
+    return running_loss / len(dataloader)
 
 
-# have not touched yet, needs a complete re-work
-def test(model, criterion, dataloader, device, num_classes):
-    print("[VALIDATING]")
-    ious, dice_scores = [], []
+def test_one_epoch(model, dataloader, device, num_classes):
+    print('[EPOCH VALIDATING]')
     model.eval()
-    running_loss = 0
-    with torch.inference_mode():
-        for images, targets in tqdm(dataloader):
-            images, targets = images.to(device), targets.to(device)
-            prediction = model(images)['out']
-            loss = criterion(prediction, targets)
-            running_loss += loss.item()
-            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
-            targets = targets.argmax(dim=1)  # (batch_size, w, h)
-            iou = jaccard_index(prediction, targets, num_classes=num_classes).item()
-            dice_score = dice(prediction, targets, num_classes=num_classes, ignore_index=0).item()
-            ious.append(iou), dice_scores.append(dice_score)
 
-    test_loss = running_loss / len(dataloader)
+    ious, dice_scores = [], []
+    with torch.inference_mode():
+        for batch, (images, targets) in enumerate(dataloader):
+            # send the images and targets to the model
+            images = list(image.to(device) for image in images)
+
+            predictions = model(images)
+            for prediction, target in zip(predictions, targets):
+                if len(prediction['masks']) > 0:
+                    prediction_masks = prediction['masks'] >= 0.5
+                    pred_mask_union = prediction_masks[0]
+                    for mask in prediction_masks:
+                        pred_mask_union = pred_mask_union.logical_or(mask)
+
+                    targ_seg_mask = target['seg_mask']
+                    iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
+                    dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes, ignore_index=0).item()
+                    ious.append(iou), dice_scores.append(dice_score)
+                else:
+                    ious.append(0), dice_scores.append(0)
+
+
     iou_acc = np.mean(ious)
     dice_acc = np.mean(dice_scores)
 
     print(f"Accuracy: mIoU= {iou_acc * 100:.3f}%, dice= {dice_acc * 100:.3f}%")
 
-    return test_loss, iou_acc, dice_acc
+    return iou_acc, dice_acc
 
 
 def main():
@@ -175,10 +164,8 @@ def main():
                 device=device,
                 print_every=1)
 
-        # calculate loss, iou and dice for the epoch
-        val_epoch_loss, epoch_iou, epoch_dice = test(
+        epoch_iou, epoch_dice = test_one_epoch(
                 model=model,
-                criterion=nn.BCEWithLogitsLoss(),
                 dataloader=test_loader,
                 device=device,
                 num_classes=HYPER_PARAMS['NUM_CLASSES'])
@@ -187,33 +174,18 @@ def main():
         scheduler.step()
 
         train_loss.append(train_epoch_loss)
-        test_loss.append(val_epoch_loss)
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
+        save_best_model(epoch_iou, epoch, model, optimizer)
 
         print(
-            f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
+            f"Epochs [{epoch + 1}/{HYPER_PARAMS['EPOCHS']}], Avg Train Loss: {train_epoch_loss:.4f}")
         print("---\n")
 
-    save_loss_plot(train_loss, test_loss, os.path.join(checkpoint_dir, 'fcn_loss.png'))
-    save_acc_plot(iou_acc, dice_acc, os.path.join(checkpoint_dir, 'fcn_accuracy.png'))
+    save_loss_plot(train_loss, os.path.join(args.checkpoint, 'fcn_loss.png'))
+    save_acc_plot(iou_acc, dice_acc, os.path.join(args.checkpoint, 'fcn_accuracy.png'))
 
-    """
-    # make the plot
-    plt.figure(figsize=(10, 7))
-    plt.plot(
-        loss_plot, color='red', linestyle='-',
-        label='test loss'
-    )
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig('loss_plot')
-    print("That's it!")
-    """
-    
 
 if __name__ == "__main__":
     main()
