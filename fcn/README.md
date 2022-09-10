@@ -47,7 +47,7 @@ options:
 
 ```
 ### Outputs
-Model checkpoints and graphs will be saved in the `checkpoint` directory. Five outputs should be produced which include
+Model checkpoints and graphs will be saved in the `checkpoint_dir` directory. Given a run name of 'fcn', five outputs should be produced which include
 the following:
 
 * 'fcn_loss.pth' - model with the best validation from all epochs
@@ -59,8 +59,8 @@ the following:
 ---
 
 ## Making Predictions (Inference)
-After training the model on a dataset, predictions can bew made on a set of images using the `inference.py` script.
-This will display the original image with the plane mask overlay.
+After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
+This will produce a new image which is the original image with a plane mask overlay.
 
 ### Usage
 ```commandline
@@ -78,6 +78,9 @@ options:
 Example
 ```commandline
 python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/
+```
+```commandline
+python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ -i 1
 ```
 
 ### Output
