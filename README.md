@@ -4,13 +4,13 @@ USYD-04A / COMP3888_W08_02
 ---
 
 ## Table of Contents
-1. [Overview](#overview)
-      1. [Model Catalog](#model-catalog)
-      2. [The Rareplanes Dataset](#the-rareplanes-dataset)
-2. [Getting Started](#getting-Started)
-      1. [Prerequisites](#prerequisites)
-      2. [Installation](#installation)
-3. [Usage](#usage)
+1. [Overview](##markdown-header-overview)
+      1. [Model Catalog](##markdown-header-model-catalog)
+      2. [The Rareplanes Dataset](##markdown-header-the-rareplanes-dataset)
+2. [Getting Started](##markdown-header-getting-Started)
+      1. [Prerequisites](##markdown-header-prerequisites)
+      2. [Installation](##markdown-header-installation)
+3. [Usage](#markdown-header-usage)
 
 ---
 
