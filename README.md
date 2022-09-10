@@ -5,11 +5,11 @@ USYD-04A / COMP3888_W08_02
 
 ## Table of Contents
 1. [Overview](##Overview)
-   1. [Model Catalog](###Model-Catalog)
-   2. [The Rareplanes Dataset](###The-Rareplanes-Dataset)
+      1. [Model Catalog](###Model-Catalog)
+      2. [The Rareplanes Dataset](###The-Rareplanes-Dataset)
 2. [Getting Started](##Getting-Started)
-   1. [Prerequisites](###Prerequisites)
-   2. [Installation](###Installation)
+      1. [Prerequisites](###Prerequisites)
+      2. [Installation](###Installation)
 3. [Usage](##Usage)
 
 ---
@@ -19,10 +19,11 @@ This project investigates the [Rareplanes dataset](https://www.cosmiqworks.org/r
 performance of various semantic / instance segmentation machine learning models.
 
 ### Model Catalog
-- [x] Fully Convolutional Network (FCN)
-- [x] DeepLabV3
-- [x] UNet
-- [x] Mask R-CNN
+
+   - [x] Fully Convolutional Network (FCN)
+   - [x] DeepLabV3
+   - [x] UNet
+   - [x] Mask R-CNN
 
 ### The Rareplanes Dataset
 The Rareplanes dataset is an open-source dataset from CosmiQ Works and AI.Reverie which incorporates
@@ -40,6 +41,8 @@ It is recommended to create a python virtual environment e.g. venv, to manage py
 ### Installation
 1. Clone the repository
 2. Install Python Packages
+
+
     ```commandline
     cd comp3888_w08_02
     pip install -r requirements.txt
@@ -48,6 +51,7 @@ It is recommended to create a python virtual environment e.g. venv, to manage py
 ---
 ## Usage
 Complete the following steps to get ready for training the models:
+
 1. **Download the dataset**. It is recommended to begin with a small portion of the dataset to reduce 
 training time, i.e. 1000 images. Instructions for downloading can be found [here](./rareplanes)
 
@@ -57,10 +61,11 @@ preprocessing can be found [here](./preprocessing)
 
 
 3. **Train the models**. Instructions for each model are available here:
-   * [FCN](./fcn)
-   * [DeepLabV3](./DeepLabV3)
-   * [UNet](./unet)
-   * [Mask R-CNN](./MaskRCNN)
+
+      * [FCN](./fcn)
+      * [DeepLabV3](./DeepLabV3)
+      * [UNet](./unet)
+      * [Mask R-CNN](./MaskRCNN)
 
 
 4. **Visualise model inferences**. Use a trained model's checkpoint file to make predictions
