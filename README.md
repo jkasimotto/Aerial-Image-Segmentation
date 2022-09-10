@@ -3,6 +3,17 @@ USYD-04A / COMP3888_W08_02
 
 ---
 
+## Table of Contents
+1. [Overview](##Overview)
+   1. [Model Catalog](###Model-Catalog)
+   2. [The Rareplanes Dataset](###The-Rareplanes-Dataset)
+2. [Getting Started](##Getting-Started)
+   1. [Prerequisites](###Prerequisites)
+   2. [Installation](###Installation)
+3. [Usage](##Usage)
+
+---
+
 ## Overview
 This project investigates the [Rareplanes dataset](https://www.cosmiqworks.org/rareplanes/) and benchmarks the
 performance of various semantic / instance segmentation machine learning models.
@@ -23,23 +34,34 @@ aircraft, i.e. jets and passenger planes. Our project focuses on the use of the 
 ---
 
 ## Getting Started
-
-Install the repository, create a virtualenvironment and run 
-```
-pip install -r requirements.txt
-``` 
-
----
-
-## Download the Dataset
-Follow the instructions in `rareplanes/README.md` to download the Rareplanes dataset. 
-
----
-
-## Preprocess images
-Follow the instructions in `preprocessing/README.md` to prepare the images for image segmentation.
+### Prerequisites
+No prerequisites are required.
+It is recommended to create a python virtual environment e.g. venv, to manage python packages.
+### Installation
+1. Clone the repository
+2. Install Python Packages
+    ```commandline
+    cd comp3888_w08_02
+    pip install -r requirements.txt
+    ```
 
 ---
+## Usage
+Complete the following steps to get ready for training the models:
+1. **Download the dataset**. It is recommended to begin with a small portion of the dataset to reduce 
+training time, i.e. 1000 images. Instructions for downloading can be found [here](./rareplanes)
 
-## Using models 
-Each model directory contains a `README.md` explaining how to perform training and inference. Graphical outputs of the models  are saved to `./outputs` and `.pth` checkpoint files are saved in `./checkpoints`.
+
+2. **Preprocess the images**. For the images to be compatible for training they must be preprocessed. Instructions for
+preprocessing can be found [here](./preprocessing)
+
+
+3. **Train the models**. Instructions for each model are available here:
+   * [FCN](./fcn)
+   * [DeepLabV3](./DeepLabV3)
+   * [UNet](./unet)
+   * [Mask R-CNN](./MaskRCNN)
+
+
+4. **Visualise model inferences**. Use a trained model's checkpoint file to make predictions
+on a set of images and view the results. Instructions for each model's inference can be found in the links above.
