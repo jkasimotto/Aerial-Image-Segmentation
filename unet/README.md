@@ -22,7 +22,7 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: unet.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-u USE_WANDB] data_dir
+usage: unet.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-u USE_WANDB] data_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
@@ -51,7 +51,7 @@ options:
 
 Example
 ```commandline
-python unet.py -c "trial.pth" -b 16 -lr 0.001 -e 2 -w 2 -n 2 /home/usyd-04a/synthetic/
+python unet.py -b 16 -lr 0.001 -e 2 -w 2 -n 2 /home/usyd-04a/synthetic/
 ```
 
 ### Outputs
