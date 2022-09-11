@@ -158,7 +158,6 @@ def main():
     for epoch in range(HYPER_PARAMS['EPOCHS']):
         print(f"[INFO] Epoch {epoch + 1}")
 
-        """
         # train for one epoch
         train_epoch_loss = train_one_epoch(
                 model=model,
@@ -166,7 +165,6 @@ def main():
                 dataloader=train_loader,
                 device=device,
                 print_every=1)
-        """
 
         # validate the epoch
         epoch_iou, epoch_dice = test_one_epoch(
@@ -176,7 +174,7 @@ def main():
                 num_classes=HYPER_PARAMS['NUM_CLASSES'])
 
         # update the learning rate
-        #scheduler.step()
+        scheduler.step()
 
         train_loss.append(train_epoch_loss)
         iou_acc.append(epoch_iou)
