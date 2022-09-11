@@ -18,3 +18,18 @@ optional arguments:
                         DEFAULT=10
   -a, --all             download all the files
 ```
+
+## Output
+A new `synthetic` directory will be created with the following structure:
+```text
+synthetic
+    |--- train
+        |--- images
+        |--- masks
+        |--- xmls
+    |--- test
+        |--- images
+        |--- masks
+        |--- xmls
+```
+The train and test directories are now ready to be preprocessed.
