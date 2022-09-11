@@ -2,24 +2,13 @@ import torch
 import torchvision
 from torchvision.io import read_image, ImageReadMode
 from torchvision.utils import draw_segmentation_masks, make_grid
-from torchvision.models.segmentation import fcn_resnet101
 import argparse
 import os
 import numpy as np
 import torchvision.transforms.functional as f
 import matplotlib.pyplot as plt
 from torch import nn
-import os
-import numpy as np
-import torch
-from PIL import Image
-from dataset import PlanesDataset
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-from engine import train_one_epoch, evaluate
-import utils
-import transforms as T
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 
 
 def show(images):
@@ -51,17 +40,11 @@ def main():
 
     checkpoint = torch.load(args.model)
     num_classes = 2
-
-    # model
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights="DEFAULT")
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-    hidden_layer = 256
-    model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask,
-                                                       hidden_layer,
-                                                       num_classes)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model = MaskRCNN(
+            weights=None,
+            num_classes=num_classes, # optional
+            weights_backbone=None)
+    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
     normalisation_factor = 1 / 255
 
     # evaluation mode
