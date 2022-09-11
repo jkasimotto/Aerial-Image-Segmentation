@@ -30,7 +30,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -run RUN_NAME, --run-name RUN_NAME
+  -c CHECKPOINT, --checkpoint CHECKPOINT
                         used for naming output files
                         default="fcn"
   -b BATCH_SIZE, --batch-size BATCH_SIZE
