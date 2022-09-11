@@ -61,12 +61,16 @@ def test_one_epoch(model, dataloader, device, num_classes):
 
             predictions = model(images)
             for prediction, target in zip(predictions, targets):
+                # create an empty mask
                 pred_mask_union = torch.zeros(1, 512, 512, dtype=torch.uint8)
+                # threshhold the prediction masks by probability >= 0.5
                 prediction_masks = prediction['masks'] >= 0.5
+                # union the prediction masks together
                 for mask in prediction_masks:
                     pred_mask_union = pred_mask_union.logical_or(mask)
 
                 targ_seg_mask = target['seg_mask']
+                # calculate iou and dice score
                 iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
                 dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes, ignore_index=0).item()
                 ious.append(iou), dice_scores.append(dice_score)
@@ -161,6 +165,7 @@ def main():
                 device=device,
                 print_every=1)
 
+        # validate the epoch
         epoch_iou, epoch_dice = test_one_epoch(
                 model=model,
                 dataloader=test_loader,
