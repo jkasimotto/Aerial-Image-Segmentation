@@ -43,12 +43,10 @@ options:
                         number of classes for semantic segmentation
   -u USE_WANDB, --use-wandb USE_WANDB
                         option to log on wandb
-
+```
 Example
 ```commandline
 python unet.py -c "trial.pth" -b 16 -lr 0.001 -e 2 -w 2 -n 2 /home/usyd-04a/synthetic/
-```
-
 ```
 ### Outputs
 Model checkpoints and graphs will be saved in the `checkpoint` directory. Five outputs should be produced which include
