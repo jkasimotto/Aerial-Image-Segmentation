@@ -21,7 +21,7 @@ def show(imgs):
     plt.show()
 
 
-def inference(model, dataloader, device):
+def inference(model, dataloader, device, prediction_dir):
     print("\n=================")
     print("| Show Predictions |")
     print("=================\n")
@@ -44,14 +44,18 @@ def inference(model, dataloader, device):
             image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.7)
             masked_images.append(image_with_mask)
 
-    grid = make_grid(masked_images)
-    show(grid)
+    print("Saving predictions ...\n")
+    for idx, prediction in enumerate(masked_images):
+        prediction = f.to_pil_image(prediction)
+        os.makedirs(prediction_dir, exist_ok=True)
+        prediction.save(os.path.join(prediction_dir, f"prediction_{idx}.png"))
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("model", help="checkpoint file for pretrained model")
     parser.add_argument("image_dir", help="path to directory containing images to run through the model")
+    parser.add_argument("prediction_dir", help="path to directory to save predictions made by the model")
     parser.add_argument("-s", "--start_index", type=int)
     parser.add_argument("-e", "--end_index", type=int)
     args = parser.parse_args()
@@ -73,7 +77,8 @@ def main():
 
     inference(model=model,
               dataloader=inference_loader,
-              device=device)
+              device=device,
+              prediction_dir=args.prediction_dir)
 
 
 if __name__ == "__main__":

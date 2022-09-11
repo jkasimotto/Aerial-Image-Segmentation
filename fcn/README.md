@@ -77,10 +77,10 @@ options:
 ```
 Example
 ```commandline
-python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/
+python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ ./predictions/
 ```
 ```commandline
-python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ -i 1
+python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ ./predictions/ -i 1
 ```
 
 ### Output
