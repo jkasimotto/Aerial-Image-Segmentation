@@ -45,6 +45,7 @@ options:
                         default=2
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
+                        default=2
 
 
 ```
