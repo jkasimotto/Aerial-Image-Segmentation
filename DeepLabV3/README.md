@@ -61,24 +61,22 @@ This will display the original image with the plane mask overlay.
 
 ### Usage
 ```commandline
-usage: inference.py [-h] [-s START_INDEX] [-e END_INDEX] model image_dir
+usage: inference.py [-h] [-s START_INDEX] [-e END_INDEX] model image_dir prediction_dir
 
 positional arguments:
   model                 checkpoint file for pretrained model
   image_dir             path to directory containing images to run through the model
+  prediction_dir        path to directory to save predictions made by the model
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -s START_INDEX, --start_index START_INDEX
-                        the starting index of test images to convert to mask
   -e END_INDEX, --end_index END_INDEX
-                        the ending index of test images to convert to mask
-
 ```
 
 Example
 ```commandline
-python inference.py /home/usyd-04a/checkpoints/deeplab/trial.pth /home/usyd-04a/synthetic/test/images/ -s 0 -e 1
+python inference.py -s 0 -e 5 /home/usyd-04a/checkpoints/deeplab/trial.pth /home/usyd-04a/synthetic/test/images/ /home/usyd-04a/marcus/comp3888_w08_02/DeepLabV3/predictions
 ```
 
 ### Output
