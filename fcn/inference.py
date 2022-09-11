@@ -43,6 +43,7 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # Load model from checkpoint file
     checkpoint = torch.load(args.model)
     model = nn.DataParallel(fcn_resnet101(num_classes=2)).to(device)
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -63,6 +64,7 @@ def main():
             output = model(image)['out']
             output = output.softmax(dim=1).argmax(dim=1) > 0
 
+        # Apply inverse normalisation factor
         image = image * (normalisation_factor ** -1)
 
         # Draw segmentation mask on top of image
@@ -71,6 +73,7 @@ def main():
         masked_images.append(image_with_mask)
 
     print("Saving predictions ...\n")
+    # Save the predictions to specified directory
     for prediction in masked_images:
         idx = masked_images.index(prediction)
         prediction = f.to_pil_image(prediction)
