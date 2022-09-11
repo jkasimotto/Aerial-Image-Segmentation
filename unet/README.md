@@ -13,10 +13,10 @@ The folder structure needs to be as follows:
 path/to/dir
     |--- train
         |--- images_tiled  # contains training images
-        |--- greyscale_masks_tiled   # contains training labels
+        |--- masks_tiled   # contains training labels
     |--- test
         |--- images_tiled  # contains test images
-        |--- greyscale_masks_tiled   # contains test labels
+        |--- masks_tiled   # contains test labels
 ```
 **NOTE**: directory names must be the same as outlined above
 
@@ -73,5 +73,5 @@ optional arguments:
 ```
 Example
 ```commandline
-python inference.py ./checkpoints/unet.pth /home/usyd-04a/synthetic/test/images/
+python inference.py ./checkpoints/unet_final.pth /home/usyd-04a/synthetic/test/images/
 ```

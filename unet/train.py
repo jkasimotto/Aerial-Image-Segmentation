@@ -161,10 +161,10 @@ def main():
     # ----------------------
     # CREATE DATASET
     # ----------------------
-    img_dir = os.path.join(args.data_dir, 'train/greyscale_images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'test/greyscale_images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
     # Augmentations to training set
     train_transforms = A.Compose([
