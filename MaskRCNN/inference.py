@@ -63,7 +63,7 @@ def main():
             image = image.squeeze(0).type(torch.uint8)
             for instance in output:
                 op = instance["masks"]
-                op = op.softmax(dim=1).argmax(dim=1) > 0
+                op = op >= 0.5
                 image = draw_segmentation_masks(image=image, masks=op)
 
         # Draw segmentation mask on top of image
