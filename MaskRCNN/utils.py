@@ -20,7 +20,7 @@ def command_line_args():
     parser.add_argument("-w", "--workers", default=2, type=int,
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
-                        help="number of classes for semantic segmentation")
+                        help="number of classes for instance segmentation")
     args = parser.parse_args()
     return args
 
@@ -28,7 +28,6 @@ def command_line_args():
 class SaveBestModel:
 
     def __init__(self, checkpoint_dir):
-        self.best_valid_loss = float('inf')
         self.best_accuracy = 0
         self.checkpoint_dir = checkpoint_dir
 
@@ -42,7 +41,7 @@ class SaveBestModel:
                 'accuracy': self.best_accuracy,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-            }, os.path.join(self.checkpoint_dir, 'fcn_acc.pth'))
+            }, os.path.join(self.checkpoint_dir, 'mask_acc.pth'))
 
 
 def save_loss_plot(train_loss, filepath):

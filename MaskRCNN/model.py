@@ -62,17 +62,18 @@ def test_one_epoch(model, dataloader, device, num_classes):
             predictions = model(images)
             for prediction, target in zip(predictions, targets):
                 # create an empty mask
-                pred_mask_union = torch.zeros(1, 512, 512, dtype=torch.uint8)
+                pred_mask_union = torch.zeros(512, 512, dtype=torch.uint8)
                 # threshhold the prediction masks by probability >= 0.5
-                prediction_masks = prediction['masks'] >= 0.5
+                binary_pred_masks = prediction['masks'] >= 0.5
+                binary_pred_masks = binary_pred_masks.squeeze(dim=1)
                 # union the prediction masks together
-                for mask in prediction_masks:
+                for mask in binary_pred_masks:
                     pred_mask_union = pred_mask_union.logical_or(mask)
 
                 targ_seg_mask = target['seg_mask']
                 # calculate iou and dice score
                 iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
-                dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes, ignore_index=0).item()
+                dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
                 ious.append(iou), dice_scores.append(dice_score)
 
 
@@ -185,8 +186,8 @@ def main():
             f"Epochs [{epoch + 1}/{HYPER_PARAMS['EPOCHS']}], Avg Train Loss: {train_epoch_loss:.4f}")
         print("---\n")
 
-    save_loss_plot(train_loss, os.path.join(args.checkpoint, 'fcn_loss.png'))
-    save_acc_plot(iou_acc, dice_acc, os.path.join(args.checkpoint, 'fcn_accuracy.png'))
+    save_loss_plot(train_loss, os.path.join(args.checkpoint, 'mask_loss.png'))
+    save_acc_plot(iou_acc, dice_acc, os.path.join(args.checkpoint, 'mask_accuracy.png'))
 
 
 if __name__ == "__main__":

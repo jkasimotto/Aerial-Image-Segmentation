@@ -54,17 +54,20 @@ def main():
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
         image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
+        img = self.as_tensor(Image.open(img_path).convert("RGB"))
         image = image.float().unsqueeze(0)
         
         # Get mask prediction for model
         with torch.inference_mode():
-            output = model(image)
             image = image * (normalisation_factor ** -1)
             image = image.squeeze(0).type(torch.uint8)
-            for instance in output:
-                op = instance["masks"]
-                op = op >= 0.5
-                image = draw_segmentation_masks(image=image, masks=op)
+
+            predictions = model(image)
+            for prediction in predictions:
+                # threshhold the prediction masks by probability >= 0.5
+                prediction_masks = prediction['masks'] >= 0.5
+                prediction_masks = prediction_masks.squeeze(dim=1)
+                image = draw_segmentation_masks(image=image, masks=prediction_masks)
 
         # Draw segmentation mask on top of image
         masked_images.append(image)
