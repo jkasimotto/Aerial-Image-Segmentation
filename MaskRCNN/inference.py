@@ -6,9 +6,11 @@ import argparse
 import os
 import numpy as np
 import torchvision.transforms.functional as f
+from torchvision import transforms
 import matplotlib.pyplot as plt
 from torch import nn
 from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
+from PIL import Image
 
 
 def show(images):
@@ -54,15 +56,14 @@ def main():
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
         image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
-        img = self.as_tensor(Image.open(img_path).convert("RGB"))
         image = image.float().unsqueeze(0)
         
         # Get mask prediction for model
         with torch.inference_mode():
+            predictions = model(image)
             image = image * (normalisation_factor ** -1)
             image = image.squeeze(0).type(torch.uint8)
 
-            predictions = model(image)
             for prediction in predictions:
                 # threshhold the prediction masks by probability >= 0.5
                 prediction_masks = prediction['masks'] >= 0.5
