@@ -22,14 +22,15 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: train.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir checkpoint
+usage: train.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-u USE_WANDB] data_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
-  checkpoint            path to directory for model checkpoint to be saved
 
 options:
   -h, --help            show this help message and exit
+  -c CHECKPOINT, --check-point CHECKPOINT
+                        filename for model checkpoint to be saved as (to be saved in /checkpoints folder)
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
   -lr LEARNING_RATE, --learning-rate LEARNING_RATE
@@ -40,6 +41,8 @@ options:
                         number of workers used in the dataloader
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
+  -u USE_WANDB, --use-wandb USE_WANDB
+                        option to log on wandb
 
 ```
 ### Outputs
