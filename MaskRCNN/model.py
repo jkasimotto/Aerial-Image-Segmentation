@@ -61,18 +61,15 @@ def test_one_epoch(model, dataloader, device, num_classes):
 
             predictions = model(images)
             for prediction, target in zip(predictions, targets):
-                if len(prediction['masks']) > 0:
-                    prediction_masks = prediction['masks'] >= 0.5
-                    pred_mask_union = prediction_masks[0]
-                    for mask in prediction_masks:
-                        pred_mask_union = pred_mask_union.logical_or(mask)
+                pred_mask_union = torch.zeros(1, 512, 512, dtype=torch.uint8)
+                prediction_masks = prediction['masks'] >= 0.5
+                for mask in prediction_masks:
+                    pred_mask_union = pred_mask_union.logical_or(mask)
 
-                    targ_seg_mask = target['seg_mask']
-                    iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
-                    dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes, ignore_index=0).item()
-                    ious.append(iou), dice_scores.append(dice_score)
-                else:
-                    ious.append(0), dice_scores.append(0)
+                targ_seg_mask = target['seg_mask']
+                iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
+                dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes, ignore_index=0).item()
+                ious.append(iou), dice_scores.append(dice_score)
 
 
     iou_acc = np.mean(ious)
