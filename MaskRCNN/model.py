@@ -104,10 +104,10 @@ def main():
     # CREATE DATASET
     # ----------------------
 
-    img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
 
     train_dataset = PlanesDataset(img_dir, mask_dir)
     test_dataset = PlanesDataset(test_img_dir, test_mask_dir)
