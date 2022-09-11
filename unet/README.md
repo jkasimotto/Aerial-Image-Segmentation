@@ -29,8 +29,6 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -c CHECKPOINT, --check-point CHECKPOINT
-                        filename for model checkpoint to be saved as (to be saved in /checkpoints folder)
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
                         default=16
