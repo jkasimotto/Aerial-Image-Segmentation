@@ -22,7 +22,7 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: fcn.py [-h] [-run RUN_NAME] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-ssl] data_dir checkpoint_dir
+usage: fcn.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-ssl] data_dir checkpoint_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
