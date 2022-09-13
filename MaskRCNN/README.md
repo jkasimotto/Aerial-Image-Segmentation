@@ -19,7 +19,7 @@ path/to/dir
 
 Usage
 
-usage: fcn.py [-h] [-n NUM_CLASSES] [-b BATCH_SIZE] [-w WORKERS] [-lr LEARNING_RATE] [-e EPOCHS] 
+usage: model.py [-h] [-n NUM_CLASSES] [-b BATCH_SIZE] [-w WORKERS] [-lr LEARNING_RATE] [-e EPOCHS] 
 
 ```
 options:
