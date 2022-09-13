@@ -74,10 +74,10 @@ def main():
 
     print("Saving predictions ...\n")
     # Save the predictions to specified directory
-    for prediction in masked_images:
-        idx = masked_images.index(prediction)
+    for i, prediction in enumerate(masked_images):
+        # idx = masked_images.index(prediction)
         prediction = f.to_pil_image(prediction)
-        prediction.save(os.path.join(args.prediction_dir, f"prediction_{idx}.png"))
+        prediction.save(os.path.join(args.prediction_dir, f"prediction_{i}.png"))
 
     # grid = make_grid(masked_images)
     # show(grid)
