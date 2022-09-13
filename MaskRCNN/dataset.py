@@ -55,7 +55,7 @@ class PlanesDataset(Dataset):
             if xmax > xmin and ymax > ymin:
                 boxes.append([xmin, ymin, xmax, ymax])
             else:
-                masks.remove(mask)
+                masks.delete(mask)
 
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
