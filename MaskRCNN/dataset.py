@@ -56,7 +56,7 @@ class PlanesDataset(Dataset):
                 boxes.append([xmin, ymin, xmax, ymax])
             else:
                 print(masks.shape)
-                np.delete(masks, i, axis=0)
+                masks = np.delete(masks, i, axis=0)
                 print(masks.shape)
 
         # convert everything into a torch.Tensor
