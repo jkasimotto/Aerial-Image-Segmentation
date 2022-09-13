@@ -105,9 +105,9 @@ def main():
     # ----------------------
 
     img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
     train_dataset = PlanesDataset(img_dir, mask_dir)
     test_dataset = PlanesDataset(test_img_dir, test_mask_dir)
@@ -139,7 +139,7 @@ def main():
             num_classes=HYPER_PARAMS['NUM_CLASSES'], # optional
             weights_backbone=None)
     # enable parallelism
-    model = nn.DataParallel(model)
+    #model = nn.DataParallel(model)
     # move model to the right device
     model.to(device)
 
