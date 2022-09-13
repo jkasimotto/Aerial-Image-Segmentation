@@ -139,7 +139,7 @@ def main():
             num_classes=HYPER_PARAMS['NUM_CLASSES'], # optional
             weights_backbone=None)
     # enable parallelism
-    model = nn.DataParallel(model)
+    #model = nn.DataParallel(model)
     # move model to the right device
     model.to(device)
 
