@@ -22,7 +22,7 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: fcn.py [-h] [-run RUN_NAME] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-ssl] data_dir checkpoint_dir
+usage: fcn.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-ssl] data_dir checkpoint_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
@@ -30,18 +30,24 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -run RUN_NAME, --run-name RUN_NAME
-                        used for naming output files. default="fcn"
+  -c CHECKPOINT, --checkpoint CHECKPOINT
+                        used for naming output files
+                        default="fcn"
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
+                        default=16
   -lr LEARNING_RATE, --learning-rate LEARNING_RATE
                         learning rate to be applied to the model
+                        default=0.001
   -e EPOCHS, --epochs EPOCHS
                         number of epochs to train the model for
+                        default=1
   -w WORKERS, --workers WORKERS
                         number of workers used in the dataloader
+                        default=2
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
+                        default=2
   -ssl, --enable-ssl    if model download from pytorch fails, enable this flag
 
 
@@ -77,10 +83,10 @@ options:
 ```
 Example
 ```commandline
-python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/
+python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ ./predictions/
 ```
 ```commandline
-python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ -i 1
+python inference.py ./checkpoints/fcn.pt /home/usyd-04a/synthetic/test/images/ ./predictions/ -i 1
 ```
 
 ### Output

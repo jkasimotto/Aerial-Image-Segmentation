@@ -4,12 +4,12 @@ USYD-04A / COMP3888_W08_02
 ---
 
 ## Table of Contents
-1. [Overview](##markdown-header-overview)
-      * [Model Catalog](##markdown-header-model-catalog)
-      * [The Rareplanes Dataset](##markdown-header-the-rareplanes-dataset)
-2. [Getting Started](##markdown-header-getting-Started)
-      * [Prerequisites](##markdown-header-prerequisites)
-      * [Installation](##markdown-header-installation)
+1. [Overview](#markdown-header-overview)
+      * [Model Catalog](#markdown-header-model-catalog)
+      * [The Rareplanes Dataset](#markdown-header-the-rareplanes-dataset)
+2. [Getting Started](#markdown-header-getting-Started)
+      * [Prerequisites](#markdown-header-prerequisites)
+      * [Installation](#markdown-header-installation)
 3. [Usage](#markdown-header-usage)
 
 ---
@@ -23,7 +23,7 @@ performance of various semantic / instance segmentation machine learning models.
    - [x] Fully Convolutional Network (FCN)
    - [x] DeepLabV3
    - [x] UNet
-   - [x] Mask R-CNN
+   - [x] Mask R-CNN **(Still in development)**
 
 ### The Rareplanes Dataset
 The Rareplanes dataset is an open-source dataset from CosmiQ Works and AI.Reverie which incorporates
@@ -65,7 +65,7 @@ preprocessing can be found [here](./preprocessing)
       * [FCN](./fcn)
       * [DeepLabV3](./DeepLabV3)
       * [UNet](./unet)
-      * [Mask R-CNN](./MaskRCNN)
+      * [Mask R-CNN](./MaskRCNN) (Still in development)
 
 
 4. **Visualise model inferences**. Use a trained model's checkpoint file to make predictions

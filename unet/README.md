@@ -13,37 +13,49 @@ The folder structure needs to be as follows:
 path/to/dir
     |--- train
         |--- images_tiled  # contains training images
-        |--- greyscale_masks_tiled   # contains training labels
+        |--- masks_tiled   # contains training labels
     |--- test
         |--- images_tiled  # contains test images
-        |--- greyscale_masks_tiled   # contains test labels
+        |--- masks_tiled   # contains test labels
 ```
 **NOTE**: directory names must be the same as outlined above
 
 ### Usage
 ```commandline
-usage: train.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] data_dir checkpoint
+usage: unet.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-u USE_WANDB] data_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
-  checkpoint            path to directory for model checkpoint to be saved
 
 options:
   -h, --help            show this help message and exit
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
+                        default=16
   -lr LEARNING_RATE, --learning-rate LEARNING_RATE
                         learning rate to be applied to the model
+                        default=0.001
   -e EPOCHS, --epochs EPOCHS
                         number of epochs to train the model for
+                        default=1
   -w WORKERS, --workers WORKERS
                         number of workers used in the dataloader
+                        default=2
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
+                        default=2
+  -u USE_WANDB, --use-wandb USE_WANDB
+                        option to log on wandb
 
 ```
+
+Example
+```commandline
+python unet.py -b 16 -lr 0.001 -e 2 -w 2 -n 2 /home/usyd-04a/synthetic/
+```
+
 ### Outputs
-Model checkpoints and graphs will be saved in the `checkpoint` directory. Five outputs should be produced which include
+Model checkpoints and graphs will be saved in a new `checkpoint` directory that will be created. Five outputs should be produced which include
 the following:
 
 * 'unet_loss.pth' - model with the best validation from all epochs
@@ -73,5 +85,5 @@ optional arguments:
 ```
 Example
 ```commandline
-python inference.py ./checkpoints/unet.pth /home/usyd-04a/synthetic/test/images/
+python inference.py ./checkpoints/unet_final.pth /home/usyd-04a/synthetic/test/images/
 ```

@@ -15,20 +15,31 @@ import ssl
 
 
 def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1):
+    """
+    Trains the model for the specified number of epochs and performs validation every epoch. Also updates
+    the best saved model throughout training process.
+    """
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
 
     start = time.time()
 
+    # Create data structures to record performance of the model
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
+
+    # Training loop
     for epoch in range(epochs):
         print(f"[INFO] Epoch {epoch + 1}")
 
+        # Epoch training
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
+
+        # Epoch validation
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
 
+        # Log results to Weights anf Biases
         # wandb.log({
         #     'train_loss': train_epoch_loss,
         #     "val_loss": val_epoch_loss,
@@ -36,11 +47,13 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         #     "dice": epoch_dice,
         # })
 
+        # Save model performance values
         train_loss.append(train_epoch_loss)
         test_loss.append(val_epoch_loss)
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
+        # Update best model saved throughout training
         analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
         print(
@@ -49,6 +62,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
 
     end = time.time()
 
+    # Saving the loss and accuracy plot after training is complete
     analyser.save_loss_plot(train_loss, test_loss)
     analyser.save_acc_plot(iou_acc, dice_acc)
 
@@ -58,6 +72,10 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
 
 
 def train_one_epoch(model, criterion, optimizer, dataloader, device):
+    """
+    Trains the model for one epoch, iterating through all batches of the datalaoder.
+    :return: The average loss of the epoch
+    """
     print('[EPOCH TRAINING]')
     model.train()
     running_loss = 0
@@ -74,6 +92,10 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device):
 
 
 def test(model, criterion, dataloader, device, num_classes):
+    """
+    Performs validation on the current model. Calculates mIoU and dice score of the model.
+    :return: tuple containing validation loss, mIoU accuracy and dice score
+    """
     print("[VALIDATING]")
     ious, dice_scores = list(), list()
     model.eval()
@@ -105,7 +127,7 @@ def command_line_args():
                         help="path to directory containing test and train images")
     parser.add_argument("checkpoint_dir",
                         help="path to directory for model checkpoint to be saved")
-    parser.add_argument("-run", "--run-name", default="fcn",
+    parser.add_argument("-c", "--checkpoint", default="fcn",
                         help="used for naming output files")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
@@ -126,7 +148,7 @@ def command_line_args():
 def main():
     args = command_line_args()
 
-    print(f'Starting run: {args.run_name}\n')
+    print(f'Starting run: {args.checkpoint}\n')
 
     # ----------------------
     # DEFINE HYPER PARAMETERS
@@ -174,7 +196,7 @@ def main():
 
     # wandb.watch(model, criterion=criterion)
 
-    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
+    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.checkpoint)
 
     model = train(model=model,
                   criterion=criterion,

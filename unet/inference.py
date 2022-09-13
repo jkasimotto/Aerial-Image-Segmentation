@@ -25,7 +25,7 @@ def show(images):
         axs[0, i].imshow(np.asarray(img))
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
     plt.show()
-    plt.savefig("inference.png")
+    plt.savefig("unet_inference.png")
 
 
 def main():

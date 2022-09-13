@@ -20,7 +20,7 @@ from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
 
 
 def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, epochs=1,
-          print_every=10, use_wandb=False):
+          print_every=10):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -44,13 +44,13 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        if use_wandb:
-            wandb.log({
-                'epoch loss': train_epoch_loss,
-                "test loss": val_epoch_loss,
-                "epoch iou": epoch_iou,
-                "epoch dice": epoch_dice,
-            })
+        # if use_wandb:
+        #     wandb.log({
+        #         'epoch loss': train_epoch_loss,
+        #         "test loss": val_epoch_loss,
+        #         "epoch iou": epoch_iou,
+        #         "epoch dice": epoch_dice,
+        #     })
 
         save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
@@ -126,7 +126,7 @@ def command_line_args():
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
                         help="number of classes for semantic segmentation")
-    parser.add_argument("--use-wandb", default=False,
+    parser.add_argument("-u" ,"--use-wandb", default=False, type=bool,
                         help="Whether to log on wandb")
     args = parser.parse_args()
     return args
@@ -153,18 +153,18 @@ def main():
         'PIN_MEMORY': True
     }
 
-    if args.use_wandb:
-        wandb.config = HYPER_PARAMS
-        wandb.init(project="UNET", entity="usyd-04a",
-                   config=wandb.config, dir="./wandb_data")
+    # if args.use_wandb:
+    #     wandb.config = HYPER_PARAMS
+    #     wandb.init(project="UNET", entity="usyd-04a",
+    #                config=wandb.config, dir="./wandb_data")
 
     # ----------------------
     # CREATE DATASET
     # ----------------------
-    img_dir = os.path.join(args.data_dir, 'train/greyscale_images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'test/greyscale_images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test/greyscale_masks_tiled')
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
     # Augmentations to training set
     train_transforms = A.Compose([
@@ -210,8 +210,8 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=HYPER_PARAMS["LR"])
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-    if args.use_wandb:
-        wandb.watch(model, criterion=criterion)
+    # if args.use_wandb:
+    #     wandb.watch(model, criterion=criterion)
 
     model = train(model,
                   criterion=criterion,

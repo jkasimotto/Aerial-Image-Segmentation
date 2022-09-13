@@ -24,8 +24,10 @@ optional arguments:
   -h, --help            show this help message and exit
   -s TILE_SIZE, --tile-size TILE_SIZE
                         dimension of tile
+                        default=512
   -n NUM_WORKERS, --num-workers NUM_WORKERS
                         number of processes utilised
+                        default=1
 ```
 
 
