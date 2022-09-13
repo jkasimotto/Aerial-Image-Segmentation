@@ -45,9 +45,10 @@ class PlanesDataset(Dataset):
         seg_masks = seg_mask == seg_obj_ids[:, None, None]
 
         # get bounding box coordinates for each mask
+        masks_cp = np.copy(masks)
         boxes = []
-        for i in range(len(masks)):
-            pos = np.asarray(masks[i]).nonzero() # returns an array of the co-ordinates of pixels that are non-zero
+        for i in range(len(masks_cp)):
+            pos = np.asarray(masks_cp[i]).nonzero() # returns an array of the co-ordinates of pixels that are non-zero
             xmin = np.min(pos[1])
             xmax = np.max(pos[1])
             ymin = np.min(pos[0])
