@@ -27,9 +27,6 @@ def is_plane_color(px, colors):
         color = colors[i]
         if px[0] == color[0] and px[1] == color[1] and px[2] == color[2] and px[3] == color[3]:
             return i
-    # for color in colors:
-    #     if px[0] == color[0] and px[1] == color[1] and px[2] == color[2] and px[3] == color[3]:
-    #         return colors.index
     return None
 
 
@@ -91,6 +88,19 @@ def filter_tiles(img_tiles, mask_tiles):
     return filtered_img_tiles, filtered_mask_tiles
 
 
+def remove_slim_planes(tiles):
+    for tile in tiles:
+        unique_colors = np.unique(tile)[1:]
+        masks = tile == unique_colors[:, None, None]
+        for i, mask in enumerate(masks):
+            pos = np.asarray(mask).nonzero()
+            xmin, xmax, ymin, ymax = np.min(pos[1]), np.max(pos[1]), np.min(pos[0]), np.max(pos[0])
+            if xmax <= xmin or ymax <= ymin:
+                tile[tile == i + 1] = 0
+    return tiles
+
+
+
 def process_files(args):
     start = args['ID'] * args['FILES_PER_WORKER']
     end = start + args['FILES_PER_WORKER']
@@ -114,8 +124,8 @@ def process_files(args):
         og_img = Image.open(img_file)
 
         # remove blank tiles
-        img_tiles, mask_tiles = filter_tiles(tile_img(og_img, tile_size=tile_size),
-                                             tile_img(new_mask, tile_size=tile_size))
+        img_tiles, mask_tiles = filter_tiles(remove_slim_planes(tile_img(og_img, tile_size=tile_size)),
+                                             remove_slim_planes(tile_img(new_mask, tile_size=tile_size)))
 
         assert (len(img_tiles) == len(mask_tiles))
 
