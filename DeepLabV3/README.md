@@ -30,16 +30,22 @@ options:
   -h, --help            show this help message and exit
   -c CHECKPOINT, --checkpoint CHECKPOINT
                         filename for model checkpoint to be saved as
+                        default="deeplab"
   -b BATCH_SIZE, --batch-size BATCH_SIZE
                         dataloader batch size
+                        default=16
   -lr LEARNING_RATE, --learning-rate LEARNING_RATE
                         learning rate to be applied to the model
+                        default=0.001
   -e EPOCHS, --epochs EPOCHS
                         number of epochs to train the model for
+                        default=1
   -w WORKERS, --workers WORKERS
                         number of workers used in the dataloader
+                        default=2
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
+                        default=2
 
 
 ```
