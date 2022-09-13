@@ -45,10 +45,10 @@ class PlanesDataset(Dataset):
         seg_masks = seg_mask == seg_obj_ids[:, None, None]
 
         # get bounding box coordinates for each mask
-        masks_cp = np.copy(masks)
         boxes = []
-        for i in range(len(masks_cp)):
-            pos = np.asarray(masks_cp[i]).nonzero() # returns an array of the co-ordinates of pixels that are non-zero
+        to_delete = []
+        for i in range(len(masks)):
+            pos = np.asarray(masks[i]).nonzero() # returns an array of the co-ordinates of pixels that are non-zero
             xmin = np.min(pos[1])
             xmax = np.max(pos[1])
             ymin = np.min(pos[0])
@@ -56,9 +56,10 @@ class PlanesDataset(Dataset):
             if xmax > xmin and ymax > ymin:
                 boxes.append([xmin, ymin, xmax, ymax])
             else:
-                print(masks.shape)
-                masks = np.delete(masks, i, axis=0)
-                print(masks.shape)
+                to_delete.append(i)
+
+        # deleting masks with invalid bounding boxes
+        masks = np.delete(masks, to_delete, axis=0)
 
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
