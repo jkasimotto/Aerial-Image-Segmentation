@@ -43,9 +43,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     checkpoint = torch.load(args.model)
-
-    model = UNET(in_channels=3, out_channels=1)
-    model = nn.DataParallel(model).to(device)
+    model = nn.DataParallel(UNET(in_channels=3, out_channels=1)).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
 
     normalisation_factor = 1 / 255

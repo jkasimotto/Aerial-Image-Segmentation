@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchmetrics.functional import dice, jaccard_index
 from tqdm import tqdm
 
-from model import UNET
+from model2 import UNET
 from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
 
@@ -204,8 +204,7 @@ def main():
     # ----------------------
 
     device_ids = [i for i in range(torch.cuda.device_count())]
-    model = nn.DataParallel(
-        UNET(in_channels=3, out_channels=1, attn=get_attn('ese')), device_ids=device_ids).to(device)
+    model = nn.DataParallel(UNET(in_channels=3, out_channels=1), device_ids=device_ids).to(device)
     criterion = nn.BCEWithLogitsLoss()  # binary cross entropy loss
     optimizer = optim.Adam(model.parameters(), lr=HYPER_PARAMS["LR"])
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
