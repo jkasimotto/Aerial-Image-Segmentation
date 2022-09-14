@@ -1,12 +1,14 @@
+import argparse
 import matplotlib.pyplot as plt
 import math
 import numpy as np
 import os
+import time
 from tqdm import tqdm
 from torchmetrics.functional import jaccard_index, dice
 
 from dataset import PlanesDataset
-from utils import *
+from model_analyzer import ModelAnalyzer
 
 import torch
 import torch.optim as optim
@@ -15,14 +17,15 @@ from torch.utils.data import DataLoader
 
 from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 
+def collate_fn(batch):
+    return tuple(zip(*batch))
 
 def train_one_epoch(model, optimizer, dataloader, device, print_every):
     print('[EPOCH TRAINING]')
     model.train()
 
     running_loss = 0
-    #for batch, (images, targets) in enumerate(tqdm(dataloader)):
-    for batch, (images, targets) in enumerate(dataloader):
+    for images, targets in tqdm(dataloader):
         # send the images and targets to the model
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -43,9 +46,6 @@ def train_one_epoch(model, optimizer, dataloader, device, print_every):
         losses.backward()
         optimizer.step()
 
-        if (batch + 1) % print_every == 0:
-            print(f"Step [{batch + 1}/{len(dataloader)}] Loss: {loss_value:.4f}")
-
     return running_loss / len(dataloader)
 
 
@@ -55,7 +55,7 @@ def test_one_epoch(model, dataloader, device, num_classes):
 
     ious, dice_scores = [], []
     with torch.inference_mode():
-        for batch, (images, targets) in enumerate(dataloader):
+        for images, targets in tqdm(dataloader):
             # send the images and targets to the model
             images = list(image.to(device) for image in images)
 
@@ -85,8 +85,32 @@ def test_one_epoch(model, dataloader, device, num_classes):
     return iou_acc, dice_acc
 
 
+def command_line_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_dir",
+                        help="path to directory containing test and train images")
+    parser.add_argument("checkpoint_dir",
+                        help="path to directory for model checkpoint to be saved")
+    parser.add_argument("-c", "--checkpoint", default="maskrcnn",
+                        help="used for naming output files")
+    parser.add_argument("-b", '--batch-size', default=16, type=int,
+                        help="dataloader batch size")
+    parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
+                        help="learning rate to be applied to the model")
+    parser.add_argument("-e", "--epochs", default=1, type=int,
+                        help="number of epochs to train the model for")
+    parser.add_argument("-w", "--workers", default=2, type=int,
+                        help="number of workers used in the dataloader")
+    parser.add_argument("-n", "--num-classes", default=2, type=int,
+                        help="number of classes for instance segmentation")
+    args = parser.parse_args()
+    return args
+
+
 def main():
     args = command_line_args()
+
+    print(f'Starting run: {args.checkpoint}\n')
 
     # ----------------------
     # DEFINE HYPER PARAMETERS
@@ -132,6 +156,8 @@ def main():
 
     # train on the GPU or on the CPU, if a GPU is not available
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    device_ids = [i for i in range(torch.cuda.device_count())]
+    print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
     # get the model
     model = MaskRCNN(
@@ -152,7 +178,13 @@ def main():
     # TRAINING
     # ----------------------
 
-    save_best_model = SaveBestModel(args.checkpoint)
+    print("\n==================")
+    print("| Training Model |")
+    print("==================\n")
+
+    start = time.time()
+
+    analyzer = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.checkpoint)
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
     for epoch in range(HYPER_PARAMS['EPOCHS']):
@@ -180,14 +212,18 @@ def main():
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        save_best_model(epoch_iou, epoch, model, optimizer)
+        analyzer.save_best_model(epoch_iou, epoch, model, optimizer)
 
         print(
             f"Epochs [{epoch + 1}/{HYPER_PARAMS['EPOCHS']}], Avg Train Loss: {train_epoch_loss:.4f}")
         print("---\n")
 
-    save_loss_plot(train_loss, os.path.join(args.checkpoint, 'mask_loss.png'))
-    save_acc_plot(iou_acc, dice_acc, os.path.join(args.checkpoint, 'mask_accuracy.png'))
+    end = time.time()
+    print(f"\nTraining took: {end - start:.2f}s")
+
+    analyzer.save_loss_plot(train_loss)
+    analyzer.save_acc_plot(iou_acc, dice_acc)
+    analyzer.save_model(model, HYPER_PARAMS['EPOCHS'], optimizer, HYPER_PARAMS['BATCH_SIZE'], HYPER_PARAMS['LR'])
 
 
 if __name__ == "__main__":
