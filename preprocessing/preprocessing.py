@@ -98,10 +98,7 @@ def remove_border_planes(tiles):
             pos = np.asarray(masks[i]).nonzero()
             xmin, xmax, ymin, ymax = np.min(pos[1]), np.max(pos[1]), np.min(pos[0]), np.max(pos[0])
             if xmax <= xmin or ymax <= ymin:
-                print(np.unique(new_tile)[1:])
-                print(f'found invalid box: {xmin}, {ymin}, {xmax}, {ymax}')
                 new_tile[new_tile == unique_colors[i]] = 0
-                print(np.unique(new_tile)[1:])
         adjusted_tiles.append(Image.fromarray(new_tile))
     return adjusted_tiles
 
