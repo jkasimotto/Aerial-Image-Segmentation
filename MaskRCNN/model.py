@@ -58,7 +58,6 @@ def test_one_epoch(model, dataloader, device, num_classes):
         for batch, (images, targets) in enumerate(dataloader):
             # send the images and targets to the model
             images = list(image.to(device) for image in images)
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
             predictions = model(images)
             for prediction, target in zip(predictions, targets):
@@ -72,6 +71,8 @@ def test_one_epoch(model, dataloader, device, num_classes):
                     pred_mask_union = pred_mask_union.logical_or(mask)
 
                 targ_seg_mask = target['seg_mask']
+                print(pred_mask_union.get_device())
+                print(targ_seg_mask.get_device())
                 # calculate iou and dice score
                 iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
                 dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
