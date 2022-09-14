@@ -71,7 +71,7 @@ def test_one_epoch(model, dataloader, device, num_classes):
                 for mask in binary_pred_masks:
                     print(pred_mask_union.get_device())
                     print(mask.get_device())
-                    pred_mask_union = pred_mask_union.logical_or(mask)
+                    pred_mask_union = pred_mask_union.cuda().logical_or(mask)
 
                 targ_seg_mask = target['seg_mask']
                 # calculate iou and dice score
