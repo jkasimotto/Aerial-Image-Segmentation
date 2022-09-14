@@ -88,16 +88,22 @@ def filter_tiles(img_tiles, mask_tiles):
     return filtered_img_tiles, filtered_mask_tiles
 
 
-def remove_slim_planes(tiles):
+def remove_border_planes(tiles):
+    adjusted_tiles = []
     for tile in tiles:
+        new_tile = np.array(tile)
         unique_colors = np.unique(tile)[1:]
-        masks = tile == unique_colors[:, None, None]
-        for i, mask in enumerate(masks):
-            pos = np.asarray(mask).nonzero()
+        masks = new_tile == unique_colors[:, None, None]
+        for i in range(len(masks)):
+            pos = np.asarray(masks[i]).nonzero()
             xmin, xmax, ymin, ymax = np.min(pos[1]), np.max(pos[1]), np.min(pos[0]), np.max(pos[0])
             if xmax <= xmin or ymax <= ymin:
-                tile[tile == i + 1] = 0
-    return tiles
+                print(np.unique(new_tile)[1:])
+                print(f'found invalid box: {xmin}, {ymin}, {xmax}, {ymax}')
+                new_tile[new_tile == unique_colors[i]] = 0
+                print(np.unique(new_tile)[1:])
+        adjusted_tiles.append(Image.fromarray(new_tile))
+    return adjusted_tiles
 
 
 
@@ -124,8 +130,8 @@ def process_files(args):
         og_img = Image.open(img_file)
 
         # remove blank tiles
-        img_tiles, mask_tiles = filter_tiles(remove_slim_planes(tile_img(og_img, tile_size=tile_size)),
-                                             remove_slim_planes(tile_img(new_mask, tile_size=tile_size)))
+        img_tiles, mask_tiles = filter_tiles(tile_img(og_img, tile_size=tile_size),
+                                             remove_border_planes(tile_img(new_mask, tile_size=tile_size)))
 
         assert (len(img_tiles) == len(mask_tiles))
 
