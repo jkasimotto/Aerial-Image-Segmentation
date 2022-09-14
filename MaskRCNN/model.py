@@ -61,18 +61,20 @@ def test_one_epoch(model, dataloader, device, num_classes):
 
             predictions = model(images)
             for prediction, target in zip(predictions, targets):
-                if len(prediction['masks']) > 0:
-                    prediction_masks = prediction['masks'] >= 0.5
-                    pred_mask_union = prediction_masks[0]
-                    for mask in prediction_masks:
-                        pred_mask_union = pred_mask_union.logical_or(mask)
+                # create an empty mask
+                pred_mask_union = torch.zeros(512, 512, dtype=torch.uint8)
+                # threshhold the prediction masks by probability >= 0.5
+                binary_pred_masks = prediction['masks'] >= 0.5
+                binary_pred_masks = binary_pred_masks.squeeze(dim=1)
+                # union the prediction masks together
+                for mask in binary_pred_masks:
+                    pred_mask_union = pred_mask_union.to(device).logical_or(mask)
 
-                    targ_seg_mask = target['seg_mask']
-                    iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
-                    dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes, ignore_index=0).item()
-                    ious.append(iou), dice_scores.append(dice_score)
-                else:
-                    ious.append(0), dice_scores.append(0)
+                targ_seg_mask = target['seg_mask']
+                # calculate iou and dice score
+                iou = jaccard_index(pred_mask_union.to(device), targ_seg_mask.to(device), num_classes=num_classes).item()
+                dice_score = dice(pred_mask_union.to(device), targ_seg_mask.to(device), num_classes=num_classes).item()
+                ious.append(iou), dice_scores.append(dice_score)
 
 
     iou_acc = np.mean(ious)
@@ -102,10 +104,10 @@ def main():
     # CREATE DATASET
     # ----------------------
 
-    img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'train_small/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'train_small/greyscale_masks_tiled')
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
     train_dataset = PlanesDataset(img_dir, mask_dir)
     test_dataset = PlanesDataset(test_img_dir, test_mask_dir)
@@ -137,7 +139,7 @@ def main():
             num_classes=HYPER_PARAMS['NUM_CLASSES'], # optional
             weights_backbone=None)
     # enable parallelism
-    model = nn.DataParallel(model)
+    #model = nn.DataParallel(model)
     # move model to the right device
     model.to(device)
 
@@ -164,6 +166,7 @@ def main():
                 device=device,
                 print_every=1)
 
+        # validate the epoch
         epoch_iou, epoch_dice = test_one_epoch(
                 model=model,
                 dataloader=test_loader,
@@ -183,8 +186,8 @@ def main():
             f"Epochs [{epoch + 1}/{HYPER_PARAMS['EPOCHS']}], Avg Train Loss: {train_epoch_loss:.4f}")
         print("---\n")
 
-    save_loss_plot(train_loss, os.path.join(args.checkpoint, 'fcn_loss.png'))
-    save_acc_plot(iou_acc, dice_acc, os.path.join(args.checkpoint, 'fcn_accuracy.png'))
+    save_loss_plot(train_loss, os.path.join(args.checkpoint, 'mask_loss.png'))
+    save_acc_plot(iou_acc, dice_acc, os.path.join(args.checkpoint, 'mask_accuracy.png'))
 
 
 if __name__ == "__main__":

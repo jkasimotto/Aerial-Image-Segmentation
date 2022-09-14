@@ -27,17 +27,17 @@ class PlanesDataset(Dataset):
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
         # with 0 being background
-        mask = Image.open(mask_path).convert("L")
+        mask_img = Image.open(mask_path).convert("L")
         # convert the PIL Image into a numpy array
-        mask  = seg_mask = np.array(mask)
+        mask = np.array(mask_img)
+        seg_mask = np.array(mask_img)
         seg_mask[seg_mask > 0] = 1  # convert white pixels to 1
         # instances are encoded as different colors
         obj_ids = np.unique(mask) # unique elements of mask in ascending order
-        seg_obj_ids = np.unique(mask)  # unique elements of mask in ascending order
+        seg_obj_ids = np.unique(seg_mask)  # unique elements of mask in ascending order
         # first id is the background, so remove it
         obj_ids = obj_ids[1:]
         seg_obj_ids = seg_obj_ids[1:]
-
 
         # split the color-encoded mask into a set
         # of binary masks
@@ -46,8 +46,8 @@ class PlanesDataset(Dataset):
 
         # get bounding box coordinates for each mask
         boxes = []
-        for mask in masks:
-            pos = np.asarray(mask).nonzero() # returns an array of the co-ordinates of pixels that are non-zero
+        for i in range(len(masks)):
+            pos = np.asarray(masks[i]).nonzero() # returns an array of the co-ordinates of pixels that are non-zero
             xmin = np.min(pos[1])
             xmax = np.max(pos[1])
             ymin = np.min(pos[0])
@@ -58,14 +58,14 @@ class PlanesDataset(Dataset):
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.ones(len(obj_ids), dtype=torch.int64) # there is only one class
         masks = torch.as_tensor(masks, dtype=torch.uint8)
-        seg_masks = torch.as_tensor(seg_masks, dtype=torch.uint8)
+        seg_mask = torch.as_tensor(seg_masks, dtype=torch.uint8).squeeze(0)
 
         # create the target dict for training
         target = {
                 "boxes": boxes,
                 "labels": labels,
                 "masks": masks,
-                "seg_mask": seg_masks,
+                "seg_mask": seg_mask,
         }
 
         return img, target

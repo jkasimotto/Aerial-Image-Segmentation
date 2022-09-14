@@ -2,24 +2,15 @@ import torch
 import torchvision
 from torchvision.io import read_image, ImageReadMode
 from torchvision.utils import draw_segmentation_masks, make_grid
-from torchvision.models.segmentation import fcn_resnet101
 import argparse
 import os
 import numpy as np
 import torchvision.transforms.functional as f
+from torchvision import transforms
 import matplotlib.pyplot as plt
 from torch import nn
-import os
-import numpy as np
-import torch
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 from PIL import Image
-from dataset import PlanesDataset
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-from engine import train_one_epoch, evaluate
-import utils
-import transforms as T
 
 
 def show(images):
@@ -51,17 +42,11 @@ def main():
 
     checkpoint = torch.load(args.model)
     num_classes = 2
-
-    # model
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights="DEFAULT")
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-    hidden_layer = 256
-    model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask,
-                                                       hidden_layer,
-                                                       num_classes)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model = MaskRCNN(
+            weights=None,
+            num_classes=num_classes, # optional
+            weights_backbone=None)
+    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
     normalisation_factor = 1 / 255
 
     # evaluation mode
@@ -75,13 +60,15 @@ def main():
         
         # Get mask prediction for model
         with torch.inference_mode():
-            output = model(image)
+            predictions = model(image)
             image = image * (normalisation_factor ** -1)
             image = image.squeeze(0).type(torch.uint8)
-            for instance in output:
-                op = instance["masks"]
-                op = op.softmax(dim=1).argmax(dim=1) > 0
-                image = draw_segmentation_masks(image=image, masks=op)
+
+            for prediction in predictions:
+                # threshhold the prediction masks by probability >= 0.5
+                prediction_masks = prediction['masks'] >= 0.5
+                prediction_masks = prediction_masks.squeeze(dim=1)
+                image = draw_segmentation_masks(image=image, masks=prediction_masks)
 
         # Draw segmentation mask on top of image
         masked_images.append(image)
