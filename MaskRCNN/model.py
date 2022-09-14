@@ -63,20 +63,17 @@ def test_one_epoch(model, dataloader, device, num_classes):
             for prediction, target in zip(predictions, targets):
                 # create an empty mask
                 pred_mask_union = torch.zeros(512, 512, dtype=torch.uint8)
-                pred_mask_union.to(device)
                 # threshhold the prediction masks by probability >= 0.5
                 binary_pred_masks = prediction['masks'] >= 0.5
                 binary_pred_masks = binary_pred_masks.squeeze(dim=1)
                 # union the prediction masks together
                 for mask in binary_pred_masks:
-                    print(pred_mask_union.get_device())
-                    print(mask.get_device())
-                    pred_mask_union = pred_mask_union.cuda().logical_or(mask)
+                    pred_mask_union = pred_mask_union.to(device).logical_or(mask)
 
                 targ_seg_mask = target['seg_mask']
                 # calculate iou and dice score
-                iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
-                dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
+                iou = jaccard_index(pred_mask_union.to(device), targ_seg_mask.to(device), num_classes=num_classes).item()
+                dice_score = dice(pred_mask_union.to(device), targ_seg_mask.to(device), num_classes=num_classes).item()
                 ious.append(iou), dice_scores.append(dice_score)
 
 
