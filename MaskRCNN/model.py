@@ -68,11 +68,11 @@ def test_one_epoch(model, dataloader, device, num_classes):
                 binary_pred_masks = binary_pred_masks.squeeze(dim=1)
                 # union the prediction masks together
                 for mask in binary_pred_masks:
+                    print(pred_mask_union.get_device())
+                    print(mask.get_device())
                     pred_mask_union = pred_mask_union.logical_or(mask)
 
                 targ_seg_mask = target['seg_mask']
-                print(pred_mask_union.get_device())
-                print(targ_seg_mask.get_device())
                 # calculate iou and dice score
                 iou = jaccard_index(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
                 dice_score = dice(pred_mask_union, targ_seg_mask, num_classes=num_classes).item()
