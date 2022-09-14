@@ -1,4 +1,3 @@
-
 import argparse
 import os
 
@@ -25,7 +24,6 @@ def show(images):
         axs[0, i].imshow(np.asarray(img))
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
     plt.show()
-    plt.savefig("unet_inference.png")
 
 
 def main():
@@ -45,7 +43,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     checkpoint = torch.load(args.model)
-    
+
     model = UNET(in_channels=3, out_channels=1)
     model = nn.DataParallel(model).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
@@ -72,8 +70,15 @@ def main():
         image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.5)
         masked_images.append(image_with_mask)
 
-    grid = make_grid(masked_images)
-    show(grid)
+    # grid = make_grid(masked_images)
+    # show(grid)
+
+    print("Saving predictions ...\n")
+    # Save the predictions to specified directory
+    os.mkdir('./inference_images')
+    for i, prediction in enumerate(masked_images):
+        prediction = f.to_pil_image(prediction)
+        prediction.save(os.path.join("./inference_images", f"prediction_{i}.png"))
 
 
 if __name__ == "__main__":
