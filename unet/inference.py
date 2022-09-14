@@ -47,8 +47,8 @@ def main():
     checkpoint = torch.load(args.model)
     
     model = UNET(in_channels=3, out_channels=1)
-    # model = nn.DataParallel(model).to(device)
-    model.load_state_dict(checkpoint["state_dict"])
+    model = nn.DataParallel(model).to(device)
+    model.load_state_dict(checkpoint["model_state_dict"])
 
     normalisation_factor = 1 / 255
 
