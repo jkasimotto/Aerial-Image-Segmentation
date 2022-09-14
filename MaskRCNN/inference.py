@@ -2,6 +2,7 @@ import torch
 import torchvision
 from torchvision.io import read_image, ImageReadMode
 from torchvision.utils import draw_segmentation_masks, make_grid
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 import argparse
 import os
 import numpy as np
@@ -9,7 +10,6 @@ import torchvision.transforms.functional as f
 from torchvision import transforms
 import matplotlib.pyplot as plt
 from torch import nn
-from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 from PIL import Image
 
 
@@ -25,12 +25,18 @@ def show(images):
     plt.show()
 
 
-def main():
+def command_line_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("model", help="checkpoint file for pretrained model")
     parser.add_argument("image_dir", help="path to directory containing images to run through the model")
+    parser.add_argument("prediction_dir", help="path to directory to save predictions made by the model")
     parser.add_argument("-i", "--index", type=int)
     args = parser.parse_args()
+    return args
+
+
+def main():
+    args = command_line_args()
 
     start, end = 0, args.index
     if args.index is not None:
@@ -40,18 +46,19 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # Load model from checkpoint file
     checkpoint = torch.load(args.model)
-    num_classes = 2
     model = MaskRCNN(
             weights=None,
-            num_classes=num_classes, # optional
+            num_classes=2,  # optional
             weights_backbone=None)
     model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+
     normalisation_factor = 1 / 255
 
-    # evaluation mode
     model.eval()
     masked_images = []
+    print("Making predictions ...\n")
     for filename in os.listdir(args.image_dir)[start: end]:
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
@@ -73,8 +80,12 @@ def main():
         # Draw segmentation mask on top of image
         masked_images.append(image)
 
-    for masked_image in masked_images:
-        show(masked_image)
+    print("Saving predictions ...\n")
+    # Save the predictions to specified directory
+    for i, prediction in enumerate(masked_images):
+        prediction = f.to_pil_image(prediction)
+        prediction.save(os.path.join(args.prediction_dir, f"prediction_{i}.png"))
+
     #grid = make_grid(masked_images)
     #show(grid)
 
