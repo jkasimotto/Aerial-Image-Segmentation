@@ -2,18 +2,17 @@ import os
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
 import numpy as np
+import torchvision
 
 
 class PlanesDataset(Dataset):
 
-    def __init__(self, img_dir, mask_dir, transform=None):
+    def __init__(self, img_dir, mask_dir, transforms=None):
         self.img_dir = img_dir
         self.mask_dir = mask_dir
-        self.transform = transform
+        self.transforms = transforms
         self.images = [f for f in os.listdir(img_dir) if not f.startswith('.')]
-        self.as_tensor = transforms.ToTensor()
 
     def __len__(self):
         return len(self.images)
@@ -29,12 +28,15 @@ class PlanesDataset(Dataset):
         mask[mask > 0] = 1  # convert any coloured pixels to 1
         color_ids = np.unique(mask)  # find all unique colors in mask
         masks = mask == color_ids[:, None, None]
-        masks = torch.as_tensor(masks, dtype=torch.float32)
 
         # Transform
-        if self.transform:
-            image = self.transform(image)
+        if self.transforms is not None:
+            image, masks = np.array(image), np.array(masks, dtype=np.float32)
+            augmentations = self.transforms(image=image, mask=masks)
+            image = augmentations["image"]
+            masks = augmentations["mask"]
         else:
-            image = self.as_tensor(image)
+            image = torchvision.transforms.ToTensor()(image)
+            masks = torch.as_tensor(masks, dtype=torch.float32)
 
         return image, masks
