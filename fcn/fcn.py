@@ -172,6 +172,16 @@ def augmentations():
     return train_transforms, test_transforms
 
 
+def my_collate_fn(batch):
+    images, labels = [], []
+    for img, mask in batch:
+        images.append(img)
+        labels.append(mask)
+    images = torch.stack(images)
+    labels = torch.stack(labels)
+    return images, labels
+
+
 def main():
     args = command_line_args()
 
@@ -209,8 +219,8 @@ def main():
 
     train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir, transforms=train_transform)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir, transforms=test_transform)
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2, collate_fn=my_collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2, collate_fn=my_collate_fn)
 
     # ----------------------
     # DEFINE MODEL
