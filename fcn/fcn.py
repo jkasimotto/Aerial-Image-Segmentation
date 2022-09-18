@@ -11,10 +11,12 @@ import time
 import argparse
 import wandb
 import os
-import ssl
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1):
+def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1,
+          use_wandb=False):
     """
     Trains the model for the specified number of epochs and performs validation every epoch. Also updates
     the best saved model throughout training process.
@@ -40,12 +42,13 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
 
         # Log results to Weights anf Biases
-        # wandb.log({
-        #     'train_loss': train_epoch_loss,
-        #     "val_loss": val_epoch_loss,
-        #     "mIoU": epoch_iou,
-        #     "dice": epoch_dice,
-        # })
+        if use_wandb:
+            wandb.log({
+                'train_loss': train_epoch_loss,
+                "val_loss": val_epoch_loss,
+                "mIoU": epoch_iou,
+                "dice": epoch_dice,
+            })
 
         # Save model performance values
         train_loss.append(train_epoch_loss)
@@ -139,10 +142,41 @@ def command_line_args():
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
                         help="number of classes for semantic segmentation")
-    parser.add_argument("-ssl", "--enable-ssl",
-                        help="if model download from pytorch fails, enable this flag", action='store_true')
+    parser.add_argument("-wandb", "--wandb",
+                        help="use weights and biases to log run", action='store_true')
     args = parser.parse_args()
     return args
+
+
+def augmentations():
+    train_transforms = A.Compose([
+        A.Rotate(limit=35, p=1),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.1),
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
+
+    test_transforms = A.Compose([
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
+
+    return train_transforms, test_transforms
+
+
+def my_collate_fn(batch):
+    images, labels = [], []
+    for img, mask in batch:
+        images.append(img)
+        labels.append(mask)
+    images = torch.stack(images)
+    labels = torch.stack(labels)
+    return images, labels
 
 
 def main():
@@ -162,11 +196,6 @@ def main():
         'epochs': args.epochs,
     }
 
-    # wandb.init(project="FCN", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
-
-    if args.enable_ssl:
-        ssl._create_default_https_context = ssl._create_unverified_context
-
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
@@ -180,10 +209,16 @@ def main():
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
-    train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir)
-    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2)
+    train_transform, test_transform = augmentations()
+
+    train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir,
+                                  num_classes=HYPER_PARAMS['num_classes'], transforms=train_transform)
+    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir,
+                                 num_classes=HYPER_PARAMS['num_classes'], transforms=test_transform)
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'],
+                              shuffle=True, num_workers=2, collate_fn=my_collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'],
+                             num_workers=2, collate_fn=my_collate_fn)
 
     # ----------------------
     # DEFINE MODEL
@@ -194,7 +229,9 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
     criterion = nn.BCEWithLogitsLoss()
 
-    # wandb.watch(model, criterion=criterion)
+    if args.wandb:
+        wandb.init(project="FCN", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
+        wandb.watch(model, criterion=criterion)
 
     analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.checkpoint)
 
@@ -206,7 +243,8 @@ def main():
                   device=device,
                   analyser=analyser,
                   epochs=HYPER_PARAMS['epochs'],
-                  num_classes=HYPER_PARAMS['num_classes'])
+                  num_classes=HYPER_PARAMS['num_classes'],
+                  use_wandb=args.wandb)
 
     analyser.save_model(model=model,
                         epochs=HYPER_PARAMS['epochs'],

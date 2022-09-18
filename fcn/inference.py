@@ -1,25 +1,15 @@
 import torch
 from torchvision.io import read_image, ImageReadMode
-from torchvision.utils import draw_segmentation_masks, make_grid
+from PIL import Image
+from torchvision.utils import draw_segmentation_masks
 from torchvision.models.segmentation import fcn_resnet101
 import argparse
 import os
 import numpy as np
 import torchvision.transforms.functional as f
-import matplotlib.pyplot as plt
 from torch import nn
-
-
-def show(images):
-    if not isinstance(images, list):
-        images = [images]
-    fig, axs = plt.subplots(ncols=len(images), squeeze=False)
-    for i, img in enumerate(images):
-        img = img.detach()
-        img = f.to_pil_image(img)
-        axs[0, i].imshow(np.asarray(img))
-        axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
-    plt.show()
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 
 def command_line_args():
@@ -30,6 +20,23 @@ def command_line_args():
     parser.add_argument("-i", "--index", type=int)
     args = parser.parse_args()
     return args
+
+
+def save_predictions(masked_images, dir_path):
+    print("Saving predictions ...\n")
+    # Save the predictions to specified directory
+    for i, prediction in enumerate(masked_images):
+        prediction = f.to_pil_image(prediction)
+        prediction.save(os.path.join(dir_path, f"prediction_{i}.png"))
+
+
+def augmentations():
+    return A.Compose([
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
 
 
 def main():
@@ -48,15 +55,18 @@ def main():
     model = nn.DataParallel(fcn_resnet101(num_classes=2)).to(device)
     model.load_state_dict(checkpoint['model_state_dict'])
 
-    normalisation_factor = 1 / 255
-
     model.eval()
     masked_images = []
     print("Making predictions ...\n")
     for filename in os.listdir(args.image_dir)[start: end]:
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
-        image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
+        image = Image.open(img_path).convert("RGB")
+        original_image = read_image(img_path, mode=ImageReadMode.RGB)  # used for displaying final prediction
+
+        transforms = augmentations()
+
+        image = transforms(image=np.array(image))['image']
         image = image.float().unsqueeze(0)
 
         # Get mask prediction for model
@@ -64,23 +74,10 @@ def main():
             output = model(image)['out']
             output = output.softmax(dim=1).argmax(dim=1) > 0
 
-        # Apply inverse normalisation factor
-        image = image * (normalisation_factor ** -1)
-
-        # Draw segmentation mask on top of image
-        image = image.squeeze(0).type(torch.uint8)
-        image_with_mask = draw_segmentation_masks(image=image, masks=output, colors="red", alpha=0.5)
+        image_with_mask = draw_segmentation_masks(image=original_image, masks=output, colors="red", alpha=0.5)
         masked_images.append(image_with_mask)
 
-    print("Saving predictions ...\n")
-    # Save the predictions to specified directory
-    for i, prediction in enumerate(masked_images):
-        # idx = masked_images.index(prediction)
-        prediction = f.to_pil_image(prediction)
-        prediction.save(os.path.join(args.prediction_dir, f"prediction_{i}.png"))
-
-    # grid = make_grid(masked_images)
-    # show(grid)
+    save_predictions(masked_images, args.prediction_dir)
 
 
 if __name__ == "__main__":
