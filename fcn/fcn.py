@@ -209,10 +209,12 @@ def main():
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
-    train_transform, test_transform = None, None
+    train_transform, test_transform = augmentations()
 
-    train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir, transforms=train_transform)
-    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir, transforms=test_transform)
+    train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir,
+                                  num_classes=HYPER_PARAMS['num_classes'], transforms=train_transform)
+    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir,
+                                 num_classes=HYPER_PARAMS['num_classes'], transforms=test_transform)
     train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'],
                               shuffle=True, num_workers=2, collate_fn=my_collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'],

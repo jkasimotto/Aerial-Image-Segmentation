@@ -8,10 +8,11 @@ import torchvision
 
 class PlanesDataset(Dataset):
 
-    def __init__(self, img_dir, mask_dir, transforms=None):
+    def __init__(self, img_dir, mask_dir, num_classes, transforms=None):
         self.img_dir = img_dir
         self.mask_dir = mask_dir
         self.transforms = transforms
+        self.num_classes = num_classes
         self.images = [f for f in os.listdir(img_dir) if not f.startswith('.')]
 
     def __len__(self):
@@ -39,9 +40,12 @@ class PlanesDataset(Dataset):
         mask = np.array(mask)
         color_ids = np.unique(mask)  # find all unique colors in mask
         masks = (mask == color_ids[:, None, None])
-        if masks.shape[0] == 1:
-            x = np.expand_dims(np.zeros_like(mask), axis=0)
-            masks = np.concatenate((masks, x))
+
+        # Add empty masks if needed for remaining classes if removed by transforms
+        if masks.shape[0] < self.num_classes:
+            for i in range(self.num_classes - 1):
+                x = np.expand_dims(np.zeros_like(mask), axis=0)
+                masks = np.concatenate((masks, x))
 
         masks = torch.as_tensor(masks, dtype=torch.float32)
 
