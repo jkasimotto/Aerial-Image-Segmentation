@@ -24,28 +24,25 @@ class PlanesDataset(Dataset):
         image = Image.open(img_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")
 
-        mask = np.array(mask)
+        mask, image = np.array(mask), np.array(image, dtype=np.float32)
         mask[mask > 0] = 1  # convert any coloured pixels to 1
-        # color_ids = np.unique(mask)[1:]  # find all unique colors in mask
-        # masks = (mask == color_ids[:, None, None])
 
         # Transform
         if self.transforms is not None:
-            image = np.array(image, dtype=np.float32)
             augmentations = self.transforms(image=image, mask=mask)
             image = augmentations["image"]
             mask = augmentations["mask"]
-            mask = np.array(mask)
-            color_ids = np.unique(mask)  # find all unique colors in mask
-            masks = (mask == color_ids[:, None, None])
-            if masks.shape[0] == 1:
-                x = np.expand_dims(np.zeros_like(mask), axis=0)
-                masks = np.concatenate((masks, x))
-            masks = torch.as_tensor(masks, dtype=torch.float32)
         else:
-            color_ids = np.unique(mask)  # find all unique colors in mask
-            masks = (mask == color_ids[:, None, None])
             image = torchvision.transforms.ToTensor()(image)
-            masks = torch.as_tensor(masks, dtype=torch.float32)
+
+        # Split mask into binary masks for each class
+        mask = np.array(mask)
+        color_ids = np.unique(mask)  # find all unique colors in mask
+        masks = (mask == color_ids[:, None, None])
+        if masks.shape[0] == 1:
+            x = np.expand_dims(np.zeros_like(mask), axis=0)
+            masks = np.concatenate((masks, x))
+
+        masks = torch.as_tensor(masks, dtype=torch.float32)
 
         return image, masks

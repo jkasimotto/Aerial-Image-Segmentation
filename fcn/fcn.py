@@ -11,8 +11,7 @@ import time
 import argparse
 import wandb
 import os
-# import ssl
-import albumentations as albu
+import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 
@@ -143,8 +142,6 @@ def command_line_args():
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
                         help="number of classes for semantic segmentation")
-    parser.add_argument("-ssl", "--enable-ssl",
-                        help="if model download from pytorch fails, enable this flag", action='store_true')
     parser.add_argument("-wandb", "--wandb",
                         help="use weights and biases to log run", action='store_true')
     args = parser.parse_args()
@@ -152,18 +149,18 @@ def command_line_args():
 
 
 def augmentations():
-    train_transforms = albu.Compose([
-        albu.Rotate(limit=35, p=1),
-        albu.HorizontalFlip(p=0.5),
-        albu.VerticalFlip(p=0.1),
-        albu.Normalize(
+    train_transforms = A.Compose([
+        A.Rotate(limit=35, p=1),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.1),
+        A.Normalize(
             mean=[0.5, 0.5, 0.5],
             std=[0.5, 0.5, 0.5],
         ),
         ToTensorV2()])
 
-    test_transforms = albu.Compose([
-        albu.Normalize(
+    test_transforms = A.Compose([
+        A.Normalize(
             mean=[0.5, 0.5, 0.5],
             std=[0.5, 0.5, 0.5],
         ),
@@ -199,9 +196,6 @@ def main():
         'epochs': args.epochs,
     }
 
-    # if args.enable_ssl:
-    #     ssl._create_default_https_context = ssl._create_unverified_context
-
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
@@ -215,12 +209,14 @@ def main():
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
-    train_transform, test_transform = augmentations()
+    train_transform, test_transform = None, None
 
     train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir, transforms=train_transform)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir, transforms=test_transform)
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2, collate_fn=my_collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2, collate_fn=my_collate_fn)
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'],
+                              shuffle=True, num_workers=2, collate_fn=my_collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'],
+                             num_workers=2, collate_fn=my_collate_fn)
 
     # ----------------------
     # DEFINE MODEL
