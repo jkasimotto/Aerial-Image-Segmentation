@@ -1,6 +1,6 @@
-import torch
 from torchmetrics.functional import jaccard_index, dice
-from utils import *
+from torchvision.models.segmentation import deeplabv3_resnet101
+from model_analyser import *
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch import nn
@@ -12,31 +12,26 @@ import argparse
 import wandb
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, checkpoint_dir, checkpoint_name, epochs=1):
+def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1,
+          use_wandb=False):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
 
-    # # Required to log on Weights & Biases
-    # wandb.watch(model, criterion=criterion)
-
     # Time how long it takes to train the model
     start = time.time()
-
-    # Load in class to save best model
-    save_best_model = SaveBestModel(checkpoint_dir=checkpoint_dir, checkpoint_name=checkpoint_name)
 
     # Initialise arrays to store training results
     train_loss, test_loss = [], []
     iou_acc, dice_acc = [], []
 
-    ##### TRAINING LOOP #####
+    # Training Loop
     for epoch in range(epochs):
         print(f"[INFO] Epoch {epoch + 1}")
 
         # Get training Loss
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
-        # Get Validation Loss, MIOU and DICE for epoch
+        # Get Validation Loss, mIoU and DICE for epoch
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
 
         # Append data to array for graphing
@@ -45,16 +40,17 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        # # Log epoch on Weights & Biases
-        # wandb.log({
-        #     'train_loss': train_epoch_loss,
-        #     "val_loss": val_epoch_loss,
-        #     "mIoU": epoch_iou,
-        #     "dice": epoch_dice,
-        # })
+        # Log results to Weights anf Biases
+        if use_wandb:
+            wandb.log({
+                'train_loss': train_epoch_loss,
+                "val_loss": val_epoch_loss,
+                "mIoU": epoch_iou,
+                "dice": epoch_dice,
+            })
 
-        # Check if current epoch is the best so far and save it as best
-        save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
+        # Update best model saved throughout training
+        analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
         print(
             f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
@@ -63,8 +59,8 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     end = time.time()
 
     # Create plots for accuracy and loss
-    save_best_model.save_loss_plot(train_loss, test_loss, 'DeepLabV3_loss.png')
-    save_best_model.save_acc_plot(iou_acc, dice_acc, 'DeepLabV3_accuracy.png')
+    analyser.save_loss_plot(train_loss, test_loss)
+    analyser.save_acc_plot(iou_acc, dice_acc)
 
     print(f"\nTraining took: {end - start:.2f}s")
 
@@ -134,7 +130,7 @@ def command_line_args():
     parser.add_argument("checkpoint_dir",
                         help="directory for model checkpoint to be saved as")
     parser.add_argument("-c", '--checkpoint', default="deeplab",
-                        help="filename for model checkpoint to be saved as")
+                        help="used for naming output files")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
     parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
@@ -145,6 +141,8 @@ def command_line_args():
                         help="number of workers used in the dataloader")
     parser.add_argument("-n", "--num-classes", default=2, type=int,
                         help="number of classes for semantic segmentation")
+    parser.add_argument("-wandb", "--wandb",
+                        help="use weights and biases to log run", action='store_true')
     args = parser.parse_args()
     return args
 
@@ -152,9 +150,6 @@ def command_line_args():
 def main():
     # Load in command line arguments
     args = command_line_args()
-
-    # # Initialise Weights & Biases
-    # wandb.init(project="DeepLabV3", entity="usyd-04a", config=wandb.config, dir="./wandb_data")
 
     # Use GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -165,11 +160,11 @@ def main():
     # ----------------------
 
     HYPER_PARAMS = {
-        'NUM_CLASSES': args.num_classes,
-        'BATCH_SIZE': args.batch_size,
-        'NUM_WORKERS': args.workers,
-        'LR': args.learning_rate,
-        'EPOCHS': args.epochs,
+        'num_classes': args.num_classes,
+        'batch_size': args.batch_size,
+        'num_workers': args.workers,
+        'learning_rate': args.learning_rate,
+        'epochs': args.epochs,
     }
 
     # ----------------------
@@ -191,45 +186,45 @@ def main():
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
 
     # Pass dataset to dataloader with predefined arguments
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], shuffle=True, num_workers=2,
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2,
                               drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['BATCH_SIZE'], num_workers=2)
+    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2)
 
     # ----------------------
     # DEFINE MODEL
     # ----------------------
 
-    # Setup multiprocessing
     device_ids = [i for i in range(torch.cuda.device_count())]
+    model = nn.DataParallel(deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids)
+    model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
+    criterion = nn.BCEWithLogitsLoss()
 
-    # Load model
-    model = nn.DataParallel(
-        torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet101', num_classes=HYPER_PARAMS['NUM_CLASSES']),
-        device_ids=device_ids).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['LR'])
-    loss_fn = nn.BCEWithLogitsLoss()
+    if args.wandb:
+        wandb.init(project="DeepLabV3", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
+        wandb.watch(model, criterion=criterion)
+
+    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.checkpoint)
 
     # Train model
-    train(model=model,
-          criterion=loss_fn,
-          optimizer=optimizer,
-          train_loader=train_loader,
-          test_loader=test_loader,
-          device=device,
-          epochs=HYPER_PARAMS['EPOCHS'],
-          num_classes=HYPER_PARAMS['NUM_CLASSES'],
-          checkpoint_dir=args.checkpoint_dir,
-          checkpoint_name=args.checkpoint)
+    model = train(model=model,
+                  criterion=criterion,
+                  optimizer=optimizer,
+                  train_loader=train_loader,
+                  test_loader=test_loader,
+                  device=device,
+                  analyser=analyser,
+                  epochs=HYPER_PARAMS['epochs'],
+                  num_classes=HYPER_PARAMS['num_classes'],
+                  use_wandb=args.wandb)
 
     # Save model after training
-    save_model(model=model,
-               epochs=HYPER_PARAMS['EPOCHS'],
-               optimizer=optimizer,
-               criterion=loss_fn,
-               batch_size=HYPER_PARAMS['BATCH_SIZE'],
-               lr=HYPER_PARAMS['LR'],
-               checkpoint_dir=args.checkpoint_dir,
-               filename=args.checkpoint)
+    analyser.save_model(model=model,
+                        epochs=HYPER_PARAMS['epochs'],
+                        optimizer=optimizer,
+                        criterion=criterion,
+                        batch_size=HYPER_PARAMS['batch_size'],
+                        lr=HYPER_PARAMS['learning_rate'])
 
 
 if __name__ == "__main__":

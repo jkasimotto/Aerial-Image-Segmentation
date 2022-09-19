@@ -1,12 +1,14 @@
-from torchvision.utils import draw_segmentation_masks, make_grid
+from torchvision.utils import draw_segmentation_masks
 import argparse
 import numpy as np
 import torchvision.transforms.functional as f
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from inference_dataset import InferenceDataset
-from utils import *
+import torch
+import matplotlib as plt
 from torch import nn
+import os
 
 
 def show(imgs):
