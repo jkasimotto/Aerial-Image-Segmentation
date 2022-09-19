@@ -130,7 +130,7 @@ def command_line_args():
                         help="path to directory containing test and train images")
     parser.add_argument("checkpoint_dir",
                         help="path to directory for model checkpoint to be saved")
-    parser.add_argument("-c", "--checkpoint", default="fcn",
+    parser.add_argument("-r", "--run-name", default="fcn",
                         help="used for naming output files")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
@@ -182,7 +182,7 @@ def my_collate_fn(batch):
 def main():
     args = command_line_args()
 
-    print(f'Starting run: {args.checkpoint}\n')
+    print(f'Starting run: {args.run_name}\n')
 
     # ----------------------
     # DEFINE HYPER PARAMETERS
@@ -233,7 +233,7 @@ def main():
         wandb.init(project="FCN", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
         wandb.watch(model, criterion=criterion)
 
-    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.checkpoint)
+    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
 
     model = train(model=model,
                   criterion=criterion,
