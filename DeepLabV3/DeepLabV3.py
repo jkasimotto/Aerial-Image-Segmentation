@@ -132,7 +132,7 @@ def command_line_args():
                         help="path to directory containing test and train images")
     parser.add_argument("checkpoint_dir",
                         help="directory for model checkpoint to be saved as")
-    parser.add_argument("-c", '--checkpoint', default="deeplab",
+    parser.add_argument("-r", '--run-name', default="deeplab",
                         help="used for naming output files")
     parser.add_argument("-b", '--batch-size', default=16, type=int,
                         help="dataloader batch size")
@@ -239,7 +239,7 @@ def main():
         wandb.init(project="DeepLabV3", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
         wandb.watch(model, criterion=criterion)
 
-    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.checkpoint)
+    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
 
     # Train model
     model = train(model=model,
