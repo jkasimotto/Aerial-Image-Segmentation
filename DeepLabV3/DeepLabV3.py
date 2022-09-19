@@ -1,7 +1,6 @@
 from torchmetrics.functional import jaccard_index, dice
 from torchvision.models.segmentation import deeplabv3_resnet101
-from model_analyser import *
-from torchvision import transforms
+from model_analyser import ModelAnalyzer
 from torch.utils.data import DataLoader
 from torch import nn
 from dataset import PlanesDataset
@@ -10,6 +9,10 @@ from tqdm import tqdm
 import time
 import argparse
 import wandb
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+import torch
+import os
 
 
 def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1,
@@ -147,6 +150,37 @@ def command_line_args():
     return args
 
 
+def augmentations():
+    train_transforms = A.Compose([
+        A.Rotate(limit=35, p=1),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.1),
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
+
+    test_transforms = A.Compose([
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
+
+    return train_transforms, test_transforms
+
+
+def my_collate_fn(batch):
+    images, labels = [], []
+    for img, mask in batch:
+        images.append(img)
+        labels.append(mask)
+    images = torch.stack(images)
+    labels = torch.stack(labels)
+    return images, labels
+
+
 def main():
     # Load in command line arguments
     args = command_line_args()
@@ -177,18 +211,19 @@ def main():
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
-    # Create custom transform that normalises data
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    train_transform, test_transform = augmentations()
 
     # Create object which loads input images and target masks and applies transform
-    train_dataset = PlanesDataset(img_dir=train_img_dir, mask_dir=train_mask_dir, transform=transform)
-    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir)
+    train_dataset = PlanesDataset(img_dir=train_img_dir, mask_dir=train_mask_dir,
+                                  num_classes=HYPER_PARAMS['num_classes'], transforms=train_transform)
+    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir, num_classes=HYPER_PARAMS['num_classes'],
+                                 transforms=test_transform)
 
     # Pass dataset to dataloader with predefined arguments
     train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2,
-                              drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2)
+                              drop_last=True, collate_fn=my_collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2,
+                             collate_fn=my_collate_fn)
 
     # ----------------------
     # DEFINE MODEL
