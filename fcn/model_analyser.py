@@ -3,7 +3,7 @@ import torch
 import os
 
 
-class ModelAnalyzer:
+class ModelAnalyser:
 
     def __init__(self, checkpoint_dir, run_name):
         self.best_valid_loss = float('inf')

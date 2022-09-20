@@ -22,7 +22,9 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: fcn.py [-h] [-r RUN_NAME] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-wandb] data_dir checkpoint_dir
+usage: fcn.py [-h] [-r RUN_NAME] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-wandb] [--nodes NODES] [--local-ranks LOCAL_RANKS]
+              [--ip-address IP_ADDRESS] [--ngpus NGPUS]
+              data_dir checkpoint_dir
 
 positional arguments:
   data_dir              path to directory containing test and train images
@@ -43,6 +45,17 @@ options:
   -n NUM_CLASSES, --num-classes NUM_CLASSES
                         number of classes for semantic segmentation
   -wandb, --wandb       use weights and biases to log run
+  --nodes NODES         Number of nodes in the network for training
+  --local-ranks LOCAL_RANKS
+                        Node's order number in [0, num_of_nodes-1]
+  --ip-address IP_ADDRESS
+                        ip address of the host node
+  --ngpus NGPUS         number of gpus per node
+```
+
+Example
+```commandline
+python fcn.py /home/usyd-04a/sample/synthetic/ /home/usyd-04a/checkpoints/fcn -r "test" -b 16 -lr 0.0001 -e 10
 ```
 
 ### Outputs
