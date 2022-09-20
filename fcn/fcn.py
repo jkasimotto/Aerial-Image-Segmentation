@@ -84,9 +84,10 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device):
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
         images, labels = images.to(device), labels.to(device)
-        prediction = model(images)['out']
-        loss = criterion(prediction, labels)
-        optimizer.zero_grad()
+        with torch.autocast('cuda'):
+            prediction = model(images)['out']
+            loss = criterion(prediction, labels)
+        optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
@@ -106,10 +107,11 @@ def test(model, criterion, dataloader, device, num_classes):
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
             images, labels = images.to(device), labels.to(device)
-            prediction = model(images)['out']
-            loss = criterion(prediction, labels)
-            running_loss += loss.item()
-            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
+            with torch.autocast('cuda'):
+                prediction = model(images)['out']
+                loss = criterion(prediction, labels)
+                running_loss += loss.item()
+                prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
             labels = labels.argmax(dim=1)
             iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
             dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
@@ -215,10 +217,10 @@ def main():
                                   num_classes=HYPER_PARAMS['num_classes'], transforms=train_transform)
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir,
                                  num_classes=HYPER_PARAMS['num_classes'], transforms=test_transform)
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'],
-                              shuffle=True, num_workers=2, collate_fn=my_collate_fn)
+    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True,
+                              num_workers=HYPER_PARAMS['num_workers'], collate_fn=my_collate_fn, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'],
-                             num_workers=2, collate_fn=my_collate_fn)
+                             num_workers=HYPER_PARAMS['num_workers'], collate_fn=my_collate_fn, pin_memory=True)
 
     # ----------------------
     # DEFINE MODEL
@@ -226,7 +228,7 @@ def main():
 
     device_ids = [i for i in range(torch.cuda.device_count())]
     model = nn.DataParallel(fcn_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
+    optimizer = torch.optim.AdamW(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
     criterion = nn.BCEWithLogitsLoss()
 
     if args.wandb:
