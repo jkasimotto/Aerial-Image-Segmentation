@@ -16,20 +16,7 @@ import torch.distributed as dist
 from utils import augmentations, my_collate_fn, command_line_args
 
 
-def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-    os.environ['WORLD_SIZE'] = str(world_size)
-
-    # initialize the process group
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
-
-
-def cleanup():
-    dist.destroy_process_group()
-
-
-def train(model, criterion, optimizer, train_loader, test_loader, analyser, args):
+def train(model, criterion, optimizer, train_loader, test_loader, analyser, args, rank):
     """
     Trains the model for the specified number of epochs and performs validation every epoch. Also updates
     the best saved model throughout training process.
@@ -55,32 +42,34 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args)
 
         # Log results to Weights anf Biases
-        # if args.use_wandb:
-        #     wandb.log({
-        #         'train_loss': train_epoch_loss,
-        #         "val_loss": val_epoch_loss,
-        #         "mIoU": epoch_iou,
-        #         "dice": epoch_dice,
-        #     })
+        if args.wandb:
+            wandb.log({
+                'train_loss': train_epoch_loss,
+                "val_loss": val_epoch_loss,
+                "mIoU": epoch_iou,
+                "dice": epoch_dice,
+            })
 
         # Save model performance values
         train_loss.append(train_epoch_loss)
-        # test_loss.append(val_epoch_loss)
-        # iou_acc.append(epoch_iou)
-        # dice_acc.append(epoch_dice)
+        test_loss.append(val_epoch_loss)
+        iou_acc.append(epoch_iou)
+        dice_acc.append(epoch_dice)
 
         # Update best model saved throughout training
-        # analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
+        if rank == 0:
+            analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
-        # print(
-        #     f"Epochs [{epoch + 1}/{args.epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
-        # print("---\n")
+        print(
+            f"Epochs [{epoch + 1}/{args.epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
+        print("---\n")
 
     end = time.time()
 
     # Saving the loss and accuracy plot after training is complete
-    # analyser.save_loss_plot(train_loss, test_loss)
-    # analyser.save_acc_plot(iou_acc, dice_acc)
+    if rank == 0:
+        analyser.save_loss_plot(train_loss, test_loss)
+        analyser.save_acc_plot(iou_acc, dice_acc)
 
     print(f"\nTraining took: {end - start:.2f}s")
 
@@ -206,7 +195,8 @@ def dist_train(gpu, args):
                   train_loader=train_loader,
                   test_loader=test_loader,
                   analyser=analyser,
-                  args=args)
+                  args=args,
+                  rank=rank)
 
 
 def main():
