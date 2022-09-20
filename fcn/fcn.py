@@ -1,5 +1,5 @@
 from torchmetrics.functional import jaccard_index, dice
-from model_analyzer import ModelAnalyzer
+from model_analyser import ModelAnalyser
 from torchvision.models.segmentation import fcn_resnet101
 from torch.utils.data import DataLoader
 import torch.profiler
@@ -130,7 +130,7 @@ def test(model, criterion, dataloader, args):
 
 def dist_train(gpu, args):
     args.gpu = gpu
-    rank = args.local_ranks * args.num_gpus + gpu
+    rank = args.local_ranks * args.ngpus + gpu
 
     dist.init_process_group(
         backend='gloo',
@@ -141,6 +141,7 @@ def dist_train(gpu, args):
 
     torch.cuda.set_device(args.gpu)
 
+    # Setup dataset, augmentations, datalaoders
     img_dir = os.path.join(args.data_dir, 'train/images_tiled')
     mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
@@ -166,7 +167,7 @@ def dist_train(gpu, args):
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=int(args.batch_size / args.num_gpus),
+        batch_size=int(args.batch_size / args.ngpus),
         shuffle=(train_sampler is None),
         num_workers=args.workers,
         collate_fn=my_collate_fn,
@@ -175,20 +176,23 @@ def dist_train(gpu, args):
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=int(args.batch_size / args.num_gpus),
+        batch_size=int(args.batch_size / args.ngpus),
         num_workers=args.workers,
         collate_fn=my_collate_fn,
         pin_memory=True,
         sampler=test_sampler,
     )
 
+    # Setup Model, optimiser and criterion
     model = fcn_resnet101(num_classes=args.num_classes).cuda(args.gpu)
     model = DDP(model, device_ids=[args.gpu])
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     criterion = nn.BCEWithLogitsLoss()
 
-    analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
+    # Setup analyser for model checkpoint saving
+    analyser = ModelAnalyser(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
 
+    # Training loop
     model = train(model=model,
                   criterion=criterion,
                   optimizer=optimizer,
@@ -197,6 +201,16 @@ def dist_train(gpu, args):
                   analyser=analyser,
                   args=args,
                   rank=rank)
+
+    if rank == 0:
+        analyser.save_model(model=model,
+                            epochs=args.epochs,
+                            optimizer=optimizer,
+                            criterion=criterion,
+                            batch_size=args.batch_size,
+                            lr=args.learning_rate)
+
+    dist.destroy_process_group()
 
 
 def main():
@@ -209,67 +223,12 @@ def main():
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
     # DDP Setup
-    args.num_nodes = 1
-    args.num_gpus = torch.cuda.device_count()
-    args.world_size = args.num_nodes * args.num_gpus
-    args.local_ranks = 0
-    os.environ['MASTER_ADDR'] = 'localhost'
+    args.ngpus = torch.cuda.device_count() if args.ngpus is None else args.ngpus
+    args.world_size = args.nodes * args.ngpus
+    os.environ['MASTER_ADDR'] = args.ip_address
     os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(args.world_size)
-    mp.spawn(dist_train, nprocs=args.num_gpus, args=(args,))
-
-    # # ----------------------
-    # # CREATE DATASET
-    # # ----------------------
-    #
-    # img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    # mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
-    # test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
-    # test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
-    #
-    # train_transform, test_transform = augmentations()
-    #
-    # train_dataset = PlanesDataset(img_dir=img_dir, mask_dir=mask_dir,
-    #                               num_classes=HYPER_PARAMS['num_classes'], transforms=train_transform)
-    # test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir,
-    #                              num_classes=HYPER_PARAMS['num_classes'], transforms=test_transform)
-    # train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True,
-    #                           num_workers=HYPER_PARAMS['num_workers'], collate_fn=my_collate_fn, pin_memory=True)
-    # test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'],
-    #                          num_workers=HYPER_PARAMS['num_workers'], collate_fn=my_collate_fn, pin_memory=True)
-    #
-    # # ----------------------
-    # # DEFINE MODEL
-    # # ----------------------
-    #
-    # device_ids = [i for i in range(torch.cuda.device_count())]
-    # model = nn.DataParallel(fcn_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids).to(device)
-    # optimizer = torch.optim.AdamW(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
-    # criterion = nn.BCEWithLogitsLoss()
-    #
-    # if args.wandb:
-    #     wandb.init(project="FCN", entity="usyd-04a", config=HYPER_PARAMS, dir="./wandb_data")
-    #     wandb.watch(model, criterion=criterion)
-    #
-    # analyser = ModelAnalyzer(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
-    #
-    # model = train(model=model,
-    #               criterion=criterion,
-    #               optimizer=optimizer,
-    #               train_loader=train_loader,
-    #               test_loader=test_loader,
-    #               device=device,
-    #               analyser=analyser,
-    #               epochs=HYPER_PARAMS['epochs'],
-    #               num_classes=HYPER_PARAMS['num_classes'],
-    #               use_wandb=args.wandb)
-    #
-    # analyser.save_model(model=model,
-    #                     epochs=HYPER_PARAMS['epochs'],
-    #                     optimizer=optimizer,
-    #                     criterion=criterion,
-    #                     batch_size=HYPER_PARAMS['batch_size'],
-    #                     lr=HYPER_PARAMS['learning_rate'])
+    mp.spawn(dist_train, nprocs=args.ngpus, args=(args,))
 
 
 if __name__ == "__main__":

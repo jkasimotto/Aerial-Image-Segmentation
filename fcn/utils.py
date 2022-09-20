@@ -24,6 +24,14 @@ def command_line_args():
                         help="number of classes for semantic segmentation")
     parser.add_argument("-wandb", "--wandb",
                         help="use weights and biases to log run", action='store_true')
+    parser.add_argument('--nodes', default=1, type=int,
+                        help='Number of nodes in the network for training')
+    parser.add_argument('--local-ranks', default=0, type=int,
+                        help="Node's order number in [0, num_of_nodes-1]")
+    parser.add_argument('--ip-address', type=str, default='localhost',
+                        help='ip address of the host node')
+    parser.add_argument('--ngpus', default=None, type=int,
+                        help='number of gpus per node')
     args = parser.parse_args()
     return args
 
