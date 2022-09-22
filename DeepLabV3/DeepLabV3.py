@@ -13,10 +13,12 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import torch
 import os
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+import torch.multiprocessing as mp
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, num_classes, device, analyser, epochs=1,
-          use_wandb=False):
+def train(model, criterion, optimizer, train_loader, test_loader, analyser, args, rank, num_gpus, use_wandb=False):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -29,13 +31,13 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
     iou_acc, dice_acc = [], []
 
     # Training Loop
-    for epoch in range(epochs):
+    for epoch in range(args.epochs):
         print(f"[INFO] Epoch {epoch + 1}")
 
         # Get training Loss
-        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
+        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, num_gpus)
         # Get Validation Loss, mIoU and DICE for epoch
-        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, device, num_classes)
+        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, num_gpus, args)
 
         # Append data to array for graphing
         train_loss.append(train_epoch_loss)
@@ -53,24 +55,26 @@ def train(model, criterion, optimizer, train_loader, test_loader, num_classes, d
             })
 
         # Update best model saved throughout training
-        analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
+        if rank == 0:
+            analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
         print(
-            f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
+            f"Epochs [{epoch + 1}/{args.epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
         print("---\n")
 
     end = time.time()
 
     # Create plots for accuracy and loss
-    analyser.save_loss_plot(train_loss, test_loss)
-    analyser.save_acc_plot(iou_acc, dice_acc)
+    if rank == 0:
+        analyser.save_loss_plot(train_loss, test_loss)
+        analyser.save_acc_plot(iou_acc, dice_acc)
 
     print(f"\nTraining took: {end - start:.2f}s")
 
     return model
 
 
-def train_one_epoch(model, criterion, optimizer, dataloader, device):
+def train_one_epoch(model, criterion, optimizer, dataloader, num_gpus):
     print('[EPOCH TRAINING]')
 
     # Set model in training mode
@@ -79,10 +83,11 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device):
 
     # Calculate loss per batch
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
-        images, labels = images.to(device), labels.to(device)
-        prediction = model(images)['out']
-        loss = criterion(prediction, labels)
-        optimizer.zero_grad()
+        images, labels = images.cuda(num_gpus), labels.cuda(num_gpus)
+        with torch.autocast('cuda'):
+            prediction = model(images)['out']
+            loss = criterion(prediction, labels)
+        optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
@@ -91,7 +96,7 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device):
     return running_loss / len(dataloader)
 
 
-def test(model, criterion, dataloader, device, num_classes):
+def test(model, criterion, dataloader, num_gpus, args):
     print("[VALIDATING]")
 
     # Set model in evaluation mode
@@ -101,16 +106,17 @@ def test(model, criterion, dataloader, device, num_classes):
     running_loss = 0
 
     # Calculate test loss, IoU and Dice coefficient accuracy measures
-    with torch.inference_mode():
+    with torch.no_grad():
         for images, labels in tqdm(dataloader):
-            images, labels = images.to(device), labels.to(device)
-            prediction = model(images)['out']
-            loss = criterion(prediction, labels)
-            running_loss += loss.item()
-            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
+            images, labels = images.cuda(num_gpus), labels.cuda(num_gpus)
+            with torch.autocast('cuda'):
+                prediction = model(images)['out']
+                loss = criterion(prediction, labels)
+                running_loss += loss.item()
+                prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)  # (batch_size, w, h)
             labels = labels.argmax(dim=1)  # (batch_size, w, h)
-            iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
-            dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
+            iou = jaccard_index(prediction, labels, num_classes=args.num_classes).item()
+            dice_score = dice(prediction, labels, num_classes=args.num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
 
     end = time.time()
@@ -180,15 +186,8 @@ def my_collate_fn(batch):
     labels = torch.stack(labels)
     return images, labels
 
-
-def main():
-    # Load in command line arguments
-    args = command_line_args()
-
-    # Use GPU if available
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
-
+def dist_train(num_gpus, args):
+    print("In DIST TRAIN")
     # ----------------------
     # DEFINE HYPER PARAMETERS
     # ----------------------
@@ -200,6 +199,17 @@ def main():
         'learning_rate': args.learning_rate,
         'epochs': args.epochs,
     }
+
+    rank = num_gpus
+    torch.distributed.init_process_group(
+        backend='nccl',
+        rank=rank,
+        world_size=num_gpus
+    )
+    torch.manual_seed(0)
+
+
+    torch.cuda.set_device(num_gpus)
 
     # ----------------------
     # CREATE DATASET
@@ -219,19 +229,41 @@ def main():
     test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir, num_classes=HYPER_PARAMS['num_classes'],
                                  transforms=test_transform)
 
+    train_sampler = torch.utils.data.distributed.DistributedSampler(
+        train_dataset, num_replicas=num_gpus, rank=rank
+    )
+    test_sampler = torch.utils.data.distributed.DistributedSampler(
+        test_dataset, num_replicas=num_gpus, rank=rank
+    )
+
     # Pass dataset to dataloader with predefined arguments
-    train_loader = DataLoader(train_dataset, batch_size=HYPER_PARAMS['batch_size'], shuffle=True, num_workers=2,
-                              drop_last=True, collate_fn=my_collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=HYPER_PARAMS['batch_size'], num_workers=2,
-                             collate_fn=my_collate_fn)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=int(HYPER_PARAMS['batch_size'] / num_gpus),
+        shuffle=True,
+        num_workers=HYPER_PARAMS['num_workers'],
+        drop_last=True,
+        collate_fn=my_collate_fn,
+        pin_memory=True,
+        sampler=train_sampler
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=int(HYPER_PARAMS['batch_size'] / num_gpus),
+        num_workers=HYPER_PARAMS['num_workers'],
+        collate_fn=my_collate_fn,
+        pin_memory=True,
+        sampler=test_sampler
+    )
 
     # ----------------------
     # DEFINE MODEL
     # ----------------------
 
-    device_ids = [i for i in range(torch.cuda.device_count())]
-    model = nn.DataParallel(deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids)
-    model.to(device)
+    # model = DDP(deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids, output_device=len(device_ids))
+    model = deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']).cuda(num_gpus)
+    model = DDP(model, device_ids=[num_gpus])
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
     criterion = nn.BCEWithLogitsLoss()
 
@@ -247,19 +279,46 @@ def main():
                   optimizer=optimizer,
                   train_loader=train_loader,
                   test_loader=test_loader,
-                  device=device,
                   analyser=analyser,
-                  epochs=HYPER_PARAMS['epochs'],
-                  num_classes=HYPER_PARAMS['num_classes'],
+                  args=args,
+                  rank=rank,
+                  num_gpus=num_gpus,
                   use_wandb=args.wandb)
 
-    # Save model after training
-    analyser.save_model(model=model,
-                        epochs=HYPER_PARAMS['epochs'],
-                        optimizer=optimizer,
-                        criterion=criterion,
-                        batch_size=HYPER_PARAMS['batch_size'],
-                        lr=HYPER_PARAMS['learning_rate'])
+    if rank == 0:
+        # Save model after training
+        analyser.save_model(model=model,
+                            epochs=HYPER_PARAMS['epochs'],
+                            optimizer=optimizer,
+                            criterion=criterion,
+                            batch_size=HYPER_PARAMS['batch_size'],
+                            lr=HYPER_PARAMS['learning_rate'])
+
+    dist.destroy_process_group()
+
+
+def main():
+    # Load in command line arguments
+    args = command_line_args()
+
+    # Use GPU if available
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
+
+    device_ids = list(range(torch.cuda.device_count()))
+    print(device_ids)
+    num_gpus = len(device_ids)
+
+    # model = nn.DataParallel(deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids)
+    # model.to(device)
+
+    # OS Setup
+    os.environ['MASTER_ADDR'] = '192.168.10.10'
+    os.environ['MASTER_PORT'] = '12355'
+    os.environ['WORLD_SIZE'] = str(num_gpus)
+    print("before spawn")
+    mp.spawn(dist_train, nprocs=num_gpus, args=(args,))
+    print("after spawn")
 
 
 if __name__ == "__main__":
