@@ -35,9 +35,9 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         print(f"[INFO] Epoch {epoch + 1}")
 
         # Get training Loss
-        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, num_gpus)
+        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, rank)
         # Get Validation Loss, mIoU and DICE for epoch
-        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, num_gpus, args)
+        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, rank, args)
 
         # Append data to array for graphing
         train_loss.append(train_epoch_loss)
@@ -74,7 +74,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
     return model
 
 
-def train_one_epoch(model, criterion, optimizer, dataloader, num_gpus):
+def train_one_epoch(model, criterion, optimizer, dataloader, rank):
     print('[EPOCH TRAINING]')
 
     # Set model in training mode
@@ -83,7 +83,7 @@ def train_one_epoch(model, criterion, optimizer, dataloader, num_gpus):
 
     # Calculate loss per batch
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
-        images, labels = images.cuda(num_gpus), labels.cuda(num_gpus)
+        images, labels = images.cuda(rank), labels.cuda(rank)
         with torch.autocast('cuda'):
             prediction = model(images)['out']
             loss = criterion(prediction, labels)
@@ -96,7 +96,7 @@ def train_one_epoch(model, criterion, optimizer, dataloader, num_gpus):
     return running_loss / len(dataloader)
 
 
-def test(model, criterion, dataloader, num_gpus, args):
+def test(model, criterion, dataloader, rank, args):
     print("[VALIDATING]")
 
     # Set model in evaluation mode
@@ -108,7 +108,7 @@ def test(model, criterion, dataloader, num_gpus, args):
     # Calculate test loss, IoU and Dice coefficient accuracy measures
     with torch.no_grad():
         for images, labels in tqdm(dataloader):
-            images, labels = images.cuda(num_gpus), labels.cuda(num_gpus)
+            images, labels = images.cuda(rank), labels.cuda(rank)
             with torch.autocast('cuda'):
                 prediction = model(images)['out']
                 loss = criterion(prediction, labels)
@@ -186,8 +186,8 @@ def my_collate_fn(batch):
     labels = torch.stack(labels)
     return images, labels
 
-def dist_train(num_gpus, args):
-    print("In DIST TRAIN")
+def dist_train(rank, args, num_gpus):
+
     # ----------------------
     # DEFINE HYPER PARAMETERS
     # ----------------------
@@ -200,16 +200,15 @@ def dist_train(num_gpus, args):
         'epochs': args.epochs,
     }
 
-    rank = num_gpus
     torch.distributed.init_process_group(
-        backend='nccl',
+        backend='gloo',
         rank=rank,
         world_size=num_gpus
     )
     torch.manual_seed(0)
 
 
-    torch.cuda.set_device(num_gpus)
+    torch.cuda.set_device(rank)
 
     # ----------------------
     # CREATE DATASET
@@ -240,7 +239,7 @@ def dist_train(num_gpus, args):
     train_loader = DataLoader(
         train_dataset,
         batch_size=int(HYPER_PARAMS['batch_size'] / num_gpus),
-        shuffle=True,
+        shuffle=False,
         num_workers=HYPER_PARAMS['num_workers'],
         drop_last=True,
         collate_fn=my_collate_fn,
@@ -262,8 +261,8 @@ def dist_train(num_gpus, args):
     # ----------------------
 
     # model = DDP(deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']), device_ids=device_ids, output_device=len(device_ids))
-    model = deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']).cuda(num_gpus)
-    model = DDP(model, device_ids=[num_gpus])
+    model = deeplabv3_resnet101(num_classes=HYPER_PARAMS['num_classes']).cuda(rank)
+    model = DDP(model, device_ids=[rank])
     optimizer = torch.optim.Adam(model.parameters(), lr=HYPER_PARAMS['learning_rate'])
     criterion = nn.BCEWithLogitsLoss()
 
@@ -313,12 +312,11 @@ def main():
     # model.to(device)
 
     # OS Setup
-    os.environ['MASTER_ADDR'] = '192.168.10.10'
+    os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(num_gpus)
-    print("before spawn")
-    mp.spawn(dist_train, nprocs=num_gpus, args=(args,))
-    print("after spawn")
+    mp.spawn(dist_train, nprocs=num_gpus, args=(args, num_gpus))
+
 
 
 if __name__ == "__main__":
