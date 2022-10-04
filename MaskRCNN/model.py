@@ -7,6 +7,9 @@ import time
 from tqdm import tqdm
 from torchmetrics.functional import jaccard_index, dice
 
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
 from dataset import PlanesDataset
 from model_analyzer import ModelAnalyzer
 
@@ -84,6 +87,25 @@ def test_one_epoch(model, dataloader, device, num_classes):
 
     return iou_acc, dice_acc
 
+def augmentations():
+    train_transforms = A.Compose([
+        A.Rotate(limit=35, p=1),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.1),
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
+
+    test_transforms = A.Compose([
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
+
+    return train_transforms, test_transforms
 
 def command_line_args():
     parser = argparse.ArgumentParser()
@@ -123,6 +145,15 @@ def main():
         'LR': args.learning_rate,
         'EPOCHS': args.epochs,
     }
+
+    train_transform, test_transform = augmentations()
+
+    # Create object which loads input images and target masks and applies transform
+    train_dataset = PlanesDataset(img_dir=train_img_dir, mask_dir=train_mask_dir,
+                                  num_classes=HYPER_PARAMS['num_classes'], transforms=train_transform)
+    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir, num_classes=HYPER_PARAMS['num_classes'],
+                                 transforms=test_transform)
+
 
     # ----------------------
     # CREATE DATASET

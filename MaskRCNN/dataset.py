@@ -7,16 +7,20 @@ from torchvision import transforms
 
 
 class PlanesDataset(Dataset):
-    def __init__(self, img_dir, mask_dir):
+
+    def __init__(self, img_dir, mask_dir, num_classes, transforms=None):
         self.img_dir = img_dir
         self.mask_dir = mask_dir
         # load all image files, sorting them to
         # ensure that they are aligned
         self.imgs = list(sorted(os.listdir(img_dir)))
         self.masks = list(sorted(os.listdir(mask_dir)))
+        self.transforms = transforms
+        self.num_classes = num_classes
         # converts a PIL Image to a torch.FloatTensor
         # of shape [C, H, W] in the range [0.0, 1.0]
         self.as_tensor = transforms.ToTensor()
+
 
     def __getitem__(self, idx):
         # load image and mask paths
@@ -32,6 +36,13 @@ class PlanesDataset(Dataset):
         mask = np.array(mask_img)
         seg_mask = np.array(mask_img)
         seg_mask[seg_mask > 0] = 1  # convert white pixels to 1
+
+        # Transform
+        if self.transforms is not None:
+            augmentations = self.transforms(image=img, mask=masks)
+            img = augmentations["image"]
+            masks = augmentations["mask"]
+
         # instances are encoded as different colors
         obj_ids = np.unique(mask) # unique elements of mask in ascending order
         seg_obj_ids = np.unique(seg_mask)  # unique elements of mask in ascending order
