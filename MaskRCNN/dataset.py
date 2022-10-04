@@ -42,6 +42,8 @@ class PlanesDataset(Dataset):
             augmentations = self.transforms(image=img, mask=masks)
             img = augmentations["image"]
             masks = augmentations["mask"]
+        else:
+            image = torchvision.transforms.ToTensor()(image)
 
         # instances are encoded as different colors
         obj_ids = np.unique(mask) # unique elements of mask in ascending order
