@@ -89,9 +89,9 @@ def train_one_epoch(model, criterion, optimizer, dataloader, args, rank):
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
         images, labels = images.cuda(args.gpu), labels.cuda(args.gpu)
-        with torch.autocast('cuda'):
-            prediction = model(images)['out']
-            loss = criterion(prediction, labels)
+        # with torch.autocast('cuda'):
+        prediction = model(images)['out']
+        loss = criterion(prediction, labels)
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
@@ -112,11 +112,11 @@ def test(model, criterion, dataloader, args, rank):
     with torch.no_grad():
         for images, labels in tqdm(dataloader):
             images, labels = images.cuda(args.gpu), labels.cuda(args.gpu)
-            with torch.autocast('cuda'):
-                prediction = model(images)['out']
-                loss = criterion(prediction, labels)
-                running_loss += loss.item()
-                prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
+            # with torch.autocast('cuda'):
+            prediction = model(images)['out']
+            loss = criterion(prediction, labels)
+            running_loss += loss.item()
+            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
             labels = labels.argmax(dim=1)
             iou = jaccard_index(prediction, labels, num_classes=args.num_classes).item()
             dice_score = dice(prediction, labels, num_classes=args.num_classes, ignore_index=0).item()
