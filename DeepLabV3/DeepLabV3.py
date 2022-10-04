@@ -203,7 +203,7 @@ def dist_train(rank, args, num_gpus):
     }
 
     torch.distributed.init_process_group(
-        backend='gloo',
+        backend='nccl',
         rank=rank,
         world_size=num_gpus
     )
