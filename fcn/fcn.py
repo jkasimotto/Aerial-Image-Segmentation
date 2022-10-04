@@ -21,9 +21,10 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
     Trains the model for the specified number of epochs and performs validation every epoch. Also updates
     the best saved model throughout training process.
     """
-    print("\n==================")
-    print("| Training Model |")
-    print("==================\n")
+    if rank == 0:
+        print("\n==================")
+        print("| Training Model |")
+        print("==================\n")
 
     start = time.time()
 
@@ -33,13 +34,14 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
 
     # Training loop
     for epoch in range(args.epochs):
-        print(f"[INFO] Epoch {epoch + 1}")
+        if rank == 0:
+            print(f"[INFO] Epoch {epoch + 1}")
 
         # Epoch training
-        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, args)
+        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, args, rank)
 
         # Epoch validation
-        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args)
+        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args, rank)
 
         # Log results to Weights anf Biases
         if args.wandb:
@@ -60,9 +62,9 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         if rank == 0:
             analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
-        print(
-            f"Epochs [{epoch + 1}/{args.epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
-        print("---\n")
+            print(
+                f"Epochs [{epoch + 1}/{args.epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
+            print("---\n")
 
     end = time.time()
 
@@ -71,17 +73,18 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         analyser.save_loss_plot(train_loss, test_loss)
         analyser.save_acc_plot(iou_acc, dice_acc)
 
-    print(f"\nTraining took: {end - start:.2f}s")
+        print(f"\nTraining took: {end - start:.2f}s")
 
     return model
 
 
-def train_one_epoch(model, criterion, optimizer, dataloader, args):
+def train_one_epoch(model, criterion, optimizer, dataloader, args, rank):
     """
     Trains the model for one epoch, iterating through all batches of the datalaoder.
     :return: The average loss of the epoch
     """
-    print('[EPOCH TRAINING]')
+    if rank == 0:
+        print('[EPOCH TRAINING]')
     model.train()
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
@@ -97,7 +100,7 @@ def train_one_epoch(model, criterion, optimizer, dataloader, args):
     return running_loss / len(dataloader)
 
 
-def test(model, criterion, dataloader, args):
+def test(model, criterion, dataloader, args, rank):
     """
     Performs validation on the current model. Calculates mIoU and dice score of the model.
     :return: tuple containing validation loss, mIoU accuracy and dice score
@@ -123,7 +126,8 @@ def test(model, criterion, dataloader, args):
     iou_acc = np.mean(ious)
     dice_acc = np.mean(dice_scores)
 
-    print(f"Accuracy: mIoU= {iou_acc * 100:.3f}%, dice= {dice_acc * 100:.3f}%")
+    if rank == 0:
+        print(f"Accuracy: mIoU= {iou_acc * 100:.3f}%, dice= {dice_acc * 100:.3f}%")
 
     return test_loss, iou_acc, dice_acc
 
