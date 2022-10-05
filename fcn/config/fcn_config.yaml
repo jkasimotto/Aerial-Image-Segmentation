@@ -1,0 +1,20 @@
+config:
+  run: config_test_run
+  data-dir: /home/usyd-04a/synthetic/
+  checkpoint-dir: /home/usyd-04a/checkpoints/fcn
+  classes: 2
+
+hyper-params:
+  batch-size: 16
+  learning-rate: 0.0001
+  epochs: 5
+  workers: 2
+
+distributed:
+  nodes: 1
+  ip-address: localhost
+  ngpus: null
+  local-ranks: 0
+
+tools:
+  wandb: False
