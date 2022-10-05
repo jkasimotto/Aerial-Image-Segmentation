@@ -14,9 +14,10 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from utils import augmentations, my_collate_fn, command_line_args
+from torch.cuda.amp import autocast, GradScaler
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, analyser, args, rank):
+def train(model, criterion, optimizer, train_loader, test_loader, scaler, analyser, args, rank):
     """
     Trains the model for the specified number of epochs and performs validation every epoch. Also updates
     the best saved model throughout training process.
@@ -38,7 +39,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
             print(f"[INFO] Epoch {epoch + 1}")
 
         # Epoch training
-        train_epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, args, rank)
+        train_epoch_loss = train_one_epoch(model, criterion, optimizer, scaler, train_loader, args, rank)
 
         # Epoch validation
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args, rank)
@@ -78,7 +79,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
     return model
 
 
-def train_one_epoch(model, criterion, optimizer, dataloader, args, rank):
+def train_one_epoch(model, criterion, optimizer, scaler, dataloader, args, rank):
     """
     Trains the model for one epoch, iterating through all batches of the datalaoder.
     :return: The average loss of the epoch
@@ -89,12 +90,16 @@ def train_one_epoch(model, criterion, optimizer, dataloader, args, rank):
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader, disable=rank != 0)):
         images, labels = images.cuda(args.gpu), labels.cuda(args.gpu)
-        # with torch.autocast('cuda'):
-        prediction = model(images)['out']
-        loss = criterion(prediction, labels)
+        with autocast():
+            prediction = model(images)['out']
+            loss = criterion(prediction, labels)
         optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
+
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+        # loss.backward()
+        # optimizer.step()
         running_loss += loss.item()
 
     return running_loss / len(dataloader)
@@ -113,9 +118,9 @@ def test(model, criterion, dataloader, args, rank):
     with torch.no_grad():
         for images, labels in tqdm(dataloader, disable=rank != 0):
             images, labels = images.cuda(args.gpu), labels.cuda(args.gpu)
-            # with torch.autocast('cuda'):
-            prediction = model(images)['out']
-            loss = criterion(prediction, labels)
+            with autocast():
+                prediction = model(images)['out']
+                loss = criterion(prediction, labels)
             running_loss += loss.item()
             prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
             labels = labels.argmax(dim=1)
@@ -197,12 +202,15 @@ def dist_train(gpu, args):
     # Setup analyser for model checkpoint saving
     analyser = ModelAnalyser(checkpoint_dir=args.checkpoint_dir, run_name=args.run_name)
 
+    scaler = GradScaler()
+
     # Training loop
     model = train(model=model,
                   criterion=criterion,
                   optimizer=optimizer,
                   train_loader=train_loader,
                   test_loader=test_loader,
+                  scaler=scaler,
                   analyser=analyser,
                   args=args,
                   rank=rank)
