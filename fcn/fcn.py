@@ -105,7 +105,8 @@ def test(model, criterion, dataloader, args, rank):
     Performs validation on the current model. Calculates mIoU and dice score of the model.
     :return: tuple containing validation loss, mIoU accuracy and dice score
     """
-    print("[VALIDATING]")
+    if rank == 0:
+        print("[VALIDATING]")
     ious, dice_scores = list(), list()
     model.eval()
     running_loss = 0
