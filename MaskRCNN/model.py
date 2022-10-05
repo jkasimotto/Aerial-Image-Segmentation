@@ -146,14 +146,6 @@ def main():
         'EPOCHS': args.epochs,
     }
 
-    train_transform, test_transform = augmentations()
-
-    # Create object which loads input images and target masks and applies transform
-    train_dataset = PlanesDataset(img_dir=train_img_dir, mask_dir=train_mask_dir,
-                                  num_classes=HYPER_PARAMS['num_classes'], transforms=train_transform)
-    test_dataset = PlanesDataset(img_dir=test_img_dir, mask_dir=test_mask_dir, num_classes=HYPER_PARAMS['num_classes'],
-                                 transforms=test_transform)
-
 
     # ----------------------
     # CREATE DATASET
@@ -164,8 +156,10 @@ def main():
     test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
     test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
 
-    train_dataset = PlanesDataset(img_dir, mask_dir)
-    test_dataset = PlanesDataset(test_img_dir, test_mask_dir)
+    train_transform, test_transform = augmentations()
+
+    train_dataset = PlanesDataset(img_dir, mask_dir, HYPER_PARAMS['num_classes'], train_transform)
+    test_dataset = PlanesDataset(test_img_dir, test_mask_dir, HYPER_PARAMS['num_classes'], test_transform)
 
     train_loader = DataLoader(
         dataset=train_dataset,
