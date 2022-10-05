@@ -87,7 +87,7 @@ def train_one_epoch(model, criterion, optimizer, dataloader, args, rank):
         print('[EPOCH TRAINING]')
     model.train()
     running_loss = 0
-    for batch, (images, labels) in enumerate(tqdm(dataloader)):
+    for batch, (images, labels) in enumerate(tqdm(dataloader, disable=rank != 0)):
         images, labels = images.cuda(args.gpu), labels.cuda(args.gpu)
         # with torch.autocast('cuda'):
         prediction = model(images)['out']
@@ -110,7 +110,7 @@ def test(model, criterion, dataloader, args, rank):
     model.eval()
     running_loss = 0
     with torch.no_grad():
-        for images, labels in tqdm(dataloader):
+        for images, labels in tqdm(dataloader, disable=rank != 0):
             images, labels = images.cuda(args.gpu), labels.cuda(args.gpu)
             # with torch.autocast('cuda'):
             prediction = model(images)['out']
