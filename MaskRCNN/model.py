@@ -158,8 +158,8 @@ def main():
 
     train_transform, test_transform = augmentations()
 
-    train_dataset = PlanesDataset(img_dir, mask_dir, HYPER_PARAMS['num_classes'], train_transform)
-    test_dataset = PlanesDataset(test_img_dir, test_mask_dir, HYPER_PARAMS['num_classes'], test_transform)
+    train_dataset = PlanesDataset(img_dir, mask_dir, HYPER_PARAMS['NUM_CLASSES'], train_transform)
+    test_dataset = PlanesDataset(test_img_dir, test_mask_dir, HYPER_PARAMS['NUM_CLASSES'], test_transform)
 
     train_loader = DataLoader(
         dataset=train_dataset,

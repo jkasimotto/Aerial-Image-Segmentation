@@ -18,8 +18,7 @@ class PlanesDataset(Dataset):
         self.transforms = transforms
         self.num_classes = num_classes
         # converts a PIL Image to a torch.FloatTensor
-        # of shape [C, H, W] in the range [0.0, 1.0]
-        self.as_tensor = transforms.ToTensor()
+
 
 
     def __getitem__(self, idx):
@@ -27,23 +26,23 @@ class PlanesDataset(Dataset):
         img_path = os.path.join(self.img_dir, self.imgs[idx])
         mask_path = os.path.join(self.mask_dir, self.masks[idx])
         # open the original image and conver it to RGB
-        img = self.as_tensor(Image.open(img_path).convert("RGB"))
+        img = Image.open(img_path).convert("RGB")
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
         # with 0 being background
         mask_img = Image.open(mask_path).convert("L")
         # convert the PIL Image into a numpy array
+        img = np.array(img)
         mask = np.array(mask_img)
         seg_mask = np.array(mask_img)
         seg_mask[seg_mask > 0] = 1  # convert white pixels to 1
 
         # Transform
         if self.transforms is not None:
-            augmentations = self.transforms(image=img, mask=masks)
+            augmentations = self.transforms(image=img, mask=mask)
             img = augmentations["image"]
-            masks = augmentations["mask"]
-        else:
-            image = torchvision.transforms.ToTensor()(image)
+            mask = augmentations["mask"]
+        
 
         # instances are encoded as different colors
         obj_ids = np.unique(mask) # unique elements of mask in ascending order
@@ -54,6 +53,7 @@ class PlanesDataset(Dataset):
 
         # split the color-encoded mask into a set
         # of binary masks
+        mask = np.array(mask)
         masks = mask == obj_ids[:, None, None]
         seg_masks = seg_mask == seg_obj_ids[:, None, None]
 
