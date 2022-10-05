@@ -138,7 +138,7 @@ def dist_train(gpu, args):
     rank = args.local_ranks * args.ngpus + gpu
 
     dist.init_process_group(
-        backend='gloo',
+        backend='nccl',
         world_size=args.world_size,
         rank=rank,
     )
