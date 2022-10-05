@@ -1,4 +1,5 @@
 import argparse
+import yaml
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import torch
@@ -6,34 +7,41 @@ import torch
 
 def command_line_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("data_dir",
-                        help="path to directory containing test and train images")
-    parser.add_argument("checkpoint_dir",
-                        help="path to directory for model checkpoint to be saved")
-    parser.add_argument("-r", "--run-name", default="fcn",
-                        help="used for naming output files")
-    parser.add_argument("-b", '--batch-size', default=16, type=int,
-                        help="dataloader batch size")
-    parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
-                        help="learning rate to be applied to the model")
-    parser.add_argument("-e", "--epochs", default=1, type=int,
-                        help="number of epochs to train the model for")
-    parser.add_argument("-w", "--workers", default=2, type=int,
-                        help="number of workers used in the dataloader")
-    parser.add_argument("-n", "--num-classes", default=2, type=int,
-                        help="number of classes for semantic segmentation")
-    parser.add_argument("-wandb", "--wandb",
-                        help="use weights and biases to log run", action='store_true')
-    parser.add_argument('--nodes', default=1, type=int,
-                        help='Number of nodes in the network for training')
-    parser.add_argument('--local-ranks', default=0, type=int,
-                        help="Node's order number in [0, num_of_nodes-1]")
-    parser.add_argument('--ip-address', type=str, default='localhost',
-                        help='ip address of the host node')
-    parser.add_argument('--ngpus', default=None, type=int,
-                        help='number of gpus per node')
+    parser.add_argument("config_file", help="path to config file")
+    # parser.add_argument("data_dir",
+    #                     help="path to directory containing test and train images")
+    # parser.add_argument("checkpoint_dir",
+    #                     help="path to directory for model checkpoint to be saved")
+    # parser.add_argument("-r", "--run-name", default="fcn",
+    #                     help="used for naming output files")
+    # parser.add_argument("-b", '--batch-size', default=16, type=int,
+    #                     help="dataloader batch size")
+    # parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,
+    #                     help="learning rate to be applied to the model")
+    # parser.add_argument("-e", "--epochs", default=1, type=int,
+    #                     help="number of epochs to train the model for")
+    # parser.add_argument("-w", "--workers", default=2, type=int,
+    #                     help="number of workers used in the dataloader")
+    # parser.add_argument("-n", "--num-classes", default=2, type=int,
+    #                     help="number of classes for semantic segmentation")
+    # parser.add_argument("-wandb", "--wandb",
+    #                     help="use weights and biases to log run", action='store_true')
+    # parser.add_argument('--nodes', default=1, type=int,
+    #                     help='Number of nodes in the network for training')
+    # parser.add_argument('--local-ranks', default=0, type=int,
+    #                     help="Node's order number in [0, num_of_nodes-1]")
+    # parser.add_argument('--ip-address', type=str, default='localhost',
+    #                     help='ip address of the host node')
+    # parser.add_argument('--ngpus', default=None, type=int,
+    #                     help='number of gpus per node')
     args = parser.parse_args()
     return args
+
+
+def read_config_file():
+    cla = command_line_args()
+    with open(cla.config_file, "r") as stream:
+        return yaml.safe_load(stream)
 
 
 def augmentations():

@@ -13,3 +13,4 @@ botocore==1.27.60
 wandb==0.13.2
 timm==0.6.7
 albumentations==1.2.1
+pyyaml==6.0
