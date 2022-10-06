@@ -14,13 +14,17 @@ from torch.utils.data import DataLoader
 from torchmetrics.functional import dice, jaccard_index
 from tqdm import tqdm
 
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+import torch.multiprocessing as mp
+
 from model2 import UNET
 from utils import (SaveBestModel, get_loaders, save_acc_plot, save_loss_plot,
                    save_model_2)
 
 
-def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num_classes, device, epochs=1,
-          print_every=10):
+def train(model, criterion, optimizer, scheduler, train_loader, test_loader, rank, num_gpus, num_classes, epochs,
+          print_every=10, use_wandb=False):
     print("\n==================")
     print("| Training Model |")
     print("==================\n")
@@ -34,9 +38,9 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         print(f"[INFO] Epoch {epoch + 1}")
 
         train_epoch_loss = train_one_epoch(
-            model, criterion, optimizer, train_loader, device, print_every)
+            model, criterion, optimizer, train_loader, rank, print_every)
         val_epoch_loss, epoch_iou, epoch_dice = test(
-            model, criterion, test_loader, device, num_classes)
+            model, criterion, test_loader, rank, num_classes)
         scheduler.step()
 
         train_loss.append(train_epoch_loss)
@@ -44,15 +48,16 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
         iou_acc.append(epoch_iou)
         dice_acc.append(epoch_dice)
 
-        # if use_wandb:
-        #     wandb.log({
-        #         'epoch loss': train_epoch_loss,
-        #         "test loss": val_epoch_loss,
-        #         "epoch iou": epoch_iou,
-        #         "epoch dice": epoch_dice,
-        #     })
-
-        save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
+        if use_wandb:
+            wandb.log({
+                'epoch loss': train_epoch_loss,
+                "test loss": val_epoch_loss,
+                "epoch iou": epoch_iou,
+                "epoch dice": epoch_dice,
+            })
+        
+        if rank == 0:
+            save_best_model(val_epoch_loss, epoch, model, optimizer, criterion)
 
         print(
             f"Epochs [{epoch + 1}/{epochs}], Avg Train Loss: {train_epoch_loss:.4f}, Avg Test Loss: {val_epoch_loss:.4f}")
@@ -60,20 +65,21 @@ def train(model, criterion, optimizer, scheduler, train_loader, test_loader, num
 
     end = time.time()
 
-    save_loss_plot(train_loss, test_loss, 'unet_loss.png')
-    save_acc_plot(iou_acc, dice_acc, 'unet_accuracy.png')
+    if rank == 0:
+        save_loss_plot(train_loss, test_loss, 'unet_loss.png')
+        save_acc_plot(iou_acc, dice_acc, 'unet_accuracy.png')
 
     print(f"\nTraining took: {end - start:.2f}s")
 
     return model
 
 
-def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every):
+def train_one_epoch(model, criterion, optimizer, dataloader, rank, print_every):
     print('[EPOCH TRAINING]')
     model.train()
     running_loss = 0
     for batch, (images, labels) in enumerate(tqdm(dataloader)):
-        images, labels = images.to(device), labels.to(device)
+        images, labels = images.cuda(rank), labels.cuda(rank)
         prediction = model(images).squeeze(dim=1)
         loss = criterion(prediction, labels)
         optimizer.zero_grad()
@@ -83,14 +89,14 @@ def train_one_epoch(model, criterion, optimizer, dataloader, device, print_every
     return running_loss / len(dataloader)
 
 
-def test(model, criterion, dataloader, device, num_classes):
+def test(model, criterion, dataloader, rank, num_classes):
     print("[VALIDATING]")
     ious, dice_scores = list(), list()
     model.eval()
     running_loss = 0
     with torch.inference_mode():
         for images, labels in tqdm(dataloader):
-            images, labels = images.to(device), labels.to(device)
+            images, labels = images.cuda(rank), labels.cuda(rank)
             # UNET outputs a single channel. Squeeze to match labels.
             prediction = model(images).squeeze(dim=1)
             loss = criterion(prediction, labels)
@@ -131,41 +137,7 @@ def command_line_args():
     args = parser.parse_args()
     return args
 
-
-def main():
-    args = command_line_args()
-
-    # Use GPU if available
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(
-        f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
-
-    # ----------------------
-    # DEFINE HYPER PARAMETERS
-    # ----------------------
-
-    HYPER_PARAMS = {
-        'NUM_CLASSES': args.num_classes,
-        'BATCH_SIZE': args.batch_size,
-        'NUM_WORKERS': args.workers,
-        'LR': args.learning_rate,
-        'EPOCHS': args.epochs,
-        'PIN_MEMORY': True
-    }
-
-    # if args.use_wandb:
-    #     wandb.config = HYPER_PARAMS
-    #     wandb.init(project="UNET", entity="usyd-04a",
-    #                config=wandb.config, dir="./wandb_data")
-
-    # ----------------------
-    # CREATE DATASET
-    # ----------------------
-    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
-    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
-    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
-    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
-
+def augmentations():
     # Augmentations to training set
     train_transforms = A.Compose([
         A.Rotate(limit=35, p=1),
@@ -187,6 +159,43 @@ def main():
         ),
         ToTensorV2()])
 
+    return train_transforms, test_transforms
+
+def dist_train(rank, args, num_gpus):
+    
+    # ----------------------
+    # DEFINE HYPER PARAMETERS
+    # ----------------------
+
+    HYPER_PARAMS = {
+        'NUM_CLASSES': args.num_classes,
+        'BATCH_SIZE': args.batch_size,
+        'NUM_WORKERS': args.workers,
+        'LR': args.learning_rate,
+        'EPOCHS': args.epochs,
+        'PIN_MEMORY': True
+    }
+
+    torch.distributed.init_process_group(
+        backend='nccl',
+        rank=rank,
+        world_size=num_gpus
+    )
+    torch.manual_seed(0)
+
+    torch.cuda.set_device(rank)
+
+    # ----------------------
+    # CREATE DATASET
+    # ----------------------
+    img_dir = os.path.join(args.data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(args.data_dir, 'train/masks_tiled')
+    test_img_dir = os.path.join(args.data_dir, 'test/images_tiled')
+    test_mask_dir = os.path.join(args.data_dir, 'test/masks_tiled')
+
+    #Augmentations to training and testing set
+    train_transforms, test_transforms = augmentations()
+
     train_loader, test_loader = get_loaders(
         img_dir,
         mask_dir,
@@ -195,6 +204,8 @@ def main():
         HYPER_PARAMS['BATCH_SIZE'],
         train_transforms,
         test_transforms,
+        num_gpus,
+        rank,
         HYPER_PARAMS['NUM_WORKERS'],
         HYPER_PARAMS['PIN_MEMORY']
     )
@@ -203,33 +214,62 @@ def main():
     # DEFINE MODEL
     # ----------------------
 
-    device_ids = [i for i in range(torch.cuda.device_count())]
-    model = nn.DataParallel(UNET(in_channels=3, out_channels=1), device_ids=device_ids).to(device)
+    # device_ids = [i for i in range(torch.cuda.device_count())]
+    device_ids=[rank]
+    model = nn.DataParallel(UNET(in_channels=3, out_channels=1), device_ids=device_ids).cuda(rank)
+    model = DDP(model, device_ids=[rank])
     criterion = nn.BCEWithLogitsLoss()  # binary cross entropy loss
     optimizer = optim.Adam(model.parameters(), lr=HYPER_PARAMS["LR"])
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-    # if args.use_wandb:
-    #     wandb.watch(model, criterion=criterion)
+    if args.use_wandb:
+        wandb.config = HYPER_PARAMS
+        wandb.init(project="UNET", entity="usyd-04a",
+                   config=wandb.config, dir="./wandb_data")
 
     model = train(model,
                   criterion=criterion,
                   optimizer=optimizer,
+                  scheduler=scheduler,
                   train_loader=train_loader,
                   test_loader=test_loader,
-                  scheduler=scheduler,
-                  device=device,
+                  rank=rank,
+                  num_gpus=num_gpus,
                   epochs=HYPER_PARAMS["EPOCHS"],
                   print_every=30,
-                  num_classes=HYPER_PARAMS['NUM_CLASSES'])
+                  num_classes=HYPER_PARAMS['NUM_CLASSES'],
+                  use_wandb=args.use_wandb)
 
-    save_model_2(model=model,
-                 epochs=HYPER_PARAMS['EPOCHS'],
-                 optimizer=optimizer,
-                 criterion=criterion,
-                 batch_size=HYPER_PARAMS['BATCH_SIZE'],
-                 lr=HYPER_PARAMS['LR'],
-                 filename='unet_final.pth')
+    if rank == 0:
+        save_model_2(model=model,
+                    epochs=HYPER_PARAMS['EPOCHS'],
+                    optimizer=optimizer,
+                    criterion=criterion,
+                    batch_size=HYPER_PARAMS['BATCH_SIZE'],
+                    lr=HYPER_PARAMS['LR'],
+                    filename='unet_final.pth')
+    
+    dist.destroy_process_group()
+
+
+def main():
+    args = command_line_args()
+
+    # Use GPU if available
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
+
+    device_ids = list(range(torch.cuda.device_count()))
+    print(device_ids)
+    num_gpus = len(device_ids)
+
+    # OS Setup
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    os.environ['WORLD_SIZE'] = str(num_gpus)
+    mp.spawn(dist_train, nprocs=num_gpus, args=(args, num_gpus))
+
+
 
 
 # Do this so on Windows there are no issues when using NUM_WORKERS

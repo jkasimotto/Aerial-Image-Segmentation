@@ -97,8 +97,10 @@ def get_loaders(
     batch_size,
     train_transform,
     val_transform,
+    num_gpus,
+    rank,
     num_workers=4,
-    pin_memory=True
+    pin_memory=True,
 ):
     train_ds = PlanesDataset(
         img_dir=train_dir,
@@ -106,12 +108,17 @@ def get_loaders(
         transform=train_transform
     )
 
+    train_sampler = torch.utils.data.distributed.DistributedSampler(
+        train_ds, num_replicas=num_gpus, rank=rank
+    )
+
     train_loader = DataLoader(
         train_ds,
         batch_size=batch_size,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        shuffle=True
+        shuffle=False,
+        sampler=train_sampler
     )
 
     val_ds = PlanesDataset(
@@ -120,12 +127,17 @@ def get_loaders(
         transform=val_transform
     )
 
+    test_sampler = torch.utils.data.distributed.DistributedSampler(
+        val_ds, num_replicas=num_gpus, rank=rank
+    )
+
     val_loader = DataLoader(
         val_ds,
         batch_size=batch_size,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        shuffle=False
+        shuffle=False,
+        sampler=test_sampler
     )
 
     return train_loader, val_loader
