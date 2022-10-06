@@ -19,5 +19,6 @@ distributed:
   ngpus: null
   local-ranks: 0
 
-tools:
-  wandb: False
+wandb:
+  enabled: True
+  project-name: FCN-Test

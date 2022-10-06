@@ -51,7 +51,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args, rank)
 
         # Log results to Weights anf Biases
-        if args.get('tools').get('wandb'):
+        if args.get('wandb').get('enabled') and is_main_node(rank):
             wandb.log({
                 'train_loss': train_epoch_loss,
                 "val_loss": val_epoch_loss,
@@ -163,22 +163,32 @@ def test(model, criterion, dataloader, args, rank):
 
 
 def training_setup(gpu, args):
+    # Setup process if distributed is enabled
     rank = None
     if args.get('config').get('distributed'):
         rank = dist_process_setup(args, gpu)
 
     hyper_params = args.get('hyper-params')
 
+    # Setup dataloaders, model, criterion and optimiser
     train_loader, test_loader = get_data_loaders(args, rank)
     model = get_model(args)
     optimizer = torch.optim.AdamW(model.parameters(), lr=hyper_params.get('learning-rate'))
     criterion = nn.BCEWithLogitsLoss()
 
+    # Configure Weights and Biases
+    if args.get('wandb').get('enabled') and is_main_node(rank):
+        wandb.init(project=args.get('wandb').get('project-name'), entity="usyd-04a", config=args, dir="./wandb_data")
+        wandb.watch(model, criterion=criterion)
+        wandb.run.name = args.get('config').get('run')
+
+    # Create analyser for saving model checkpoints
     analyser = ModelAnalyser(
         checkpoint_dir=args.get('config').get('checkpoint-dir'),
         run_name=args.get('config').get('run'),
     )
 
+    # Setup Gradient Scaler if AMP is enabled
     scaler = None
     if args.get('config').get('amp'):
         scaler = GradScaler()
@@ -202,6 +212,7 @@ def training_setup(gpu, args):
                             batch_size=hyper_params.get('batch-size'),
                             lr=hyper_params.get('learning-rate'))
 
+    # Clean up distributed process
     if args.get('config').get('distributed'):
         dist.destroy_process_group()
 
