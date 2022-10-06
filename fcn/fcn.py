@@ -1,31 +1,28 @@
 from torchmetrics.functional import jaccard_index, dice
 from model_analyser import ModelAnalyser
-from torchvision.models.segmentation import fcn_resnet101
-from torch.utils.data import DataLoader
 import torch.profiler
 from torch import nn
-from dataset import PlanesDataset
 import numpy as np
 from tqdm import tqdm
 import time
 import wandb
-import os
 import torch.multiprocessing as mp
-from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
-from utils import augmentations, my_collate_fn, read_config_file
+from utils import read_config_file, get_data_loaders, is_main_node, get_model, dist_env_setup, dist_process_setup
 from torch.cuda.amp import autocast, GradScaler
 
 
-def train(model, criterion, optimizer, train_loader, test_loader, scaler, analyser, args, rank):
+def train(model, criterion, optimizer, train_loader, test_loader, analyser, args, scaler=None, rank=None):
     """
     Trains the model for the specified number of epochs and performs validation every epoch. Also updates
     the best saved model throughout training process.
     """
-    if rank == 0:
+    if is_main_node(rank):
         print("\n==================")
         print("| Training Model |")
         print("==================\n")
+
+    assert args.get('config').get('amp') == (scaler is not None), "Scaler should be not None if AMP is enabled"
 
     start = time.time()
 
@@ -35,7 +32,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, scaler, analys
 
     # Training loop
     for epoch in range(args.get('hyper-params').get('epochs')):
-        if rank == 0:
+        if is_main_node(rank):
             print(f"[INFO] Epoch {epoch + 1}")
 
         # Epoch training
@@ -60,7 +57,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, scaler, analys
         dice_acc.append(epoch_dice)
 
         # Update best model saved throughout training
-        if rank == 0:
+        if is_main_node(rank):
             analyser.save_best_model(val_epoch_loss, epoch_iou, epoch, model, optimizer, criterion)
 
             print(
@@ -70,7 +67,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, scaler, analys
     end = time.time()
 
     # Saving the loss and accuracy plot after training is complete
-    if rank == 0:
+    if is_main_node(rank):
         analyser.save_loss_plot(train_loss, test_loss)
         analyser.save_acc_plot(iou_acc, dice_acc)
 
@@ -84,23 +81,29 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, args, rank)
     Trains the model for one epoch, iterating through all batches of the datalaoder.
     :return: The average loss of the epoch
     """
-    if rank == 0:
+    if is_main_node(rank):
         print('[EPOCH TRAINING]')
-    model.train()
+
     running_loss = 0
     gpu = args.get('distributed').get('gpu')
-    for batch, (images, labels) in enumerate(tqdm(dataloader, disable=rank != 0)):
+    use_amp = args.get('config').get('amp')
+
+    model.train()
+    for batch, (images, labels) in enumerate(tqdm(dataloader, disable=not is_main_node(rank))):
         images, labels = images.cuda(gpu), labels.cuda(gpu)
-        with autocast():
+        with autocast(enabled=use_amp):
             prediction = model(images)['out']
             loss = criterion(prediction, labels)
         optimizer.zero_grad(set_to_none=True)
 
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
-        # loss.backward()
-        # optimizer.step()
+        if use_amp:
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
+
         running_loss += loss.item()
 
     return running_loss / len(dataloader)
@@ -119,7 +122,7 @@ def test(model, criterion, dataloader, args, rank):
     gpu = args.get('distributed').get('gpu')
     num_classes = args.get('config').get('classes')
     with torch.no_grad():
-        for images, labels in tqdm(dataloader, disable=rank != 0):
+        for images, labels in tqdm(dataloader, disable=not is_main_node(rank)):
             images, labels = images.cuda(gpu), labels.cuda(gpu)
             with autocast():
                 prediction = model(images)['out']
@@ -135,84 +138,32 @@ def test(model, criterion, dataloader, args, rank):
     iou_acc = np.mean(ious)
     dice_acc = np.mean(dice_scores)
 
-    if rank == 0:
+    if is_main_node(rank):
         print(f"Accuracy: mIoU= {iou_acc * 100:.3f}%, dice= {dice_acc * 100:.3f}%")
 
     return test_loss, iou_acc, dice_acc
 
 
-def dist_train(gpu, args):
-    args['distributed']['gpu'] = gpu
-    dist_args = args.get('distributed')
-    rank = dist_args.get('local-ranks') * dist_args.get('ngpus') + gpu
-
-    dist.init_process_group(
-        backend='nccl',
-        world_size=dist_args.get('world-size'),
-        rank=rank,
-    )
-    torch.manual_seed(0)
-
-    torch.cuda.set_device(dist_args.get('gpu'))
-
-    # Setup dataset, augmentations, datalaoders
-    data_dir = args.get('config').get('data-dir')
-    img_dir = os.path.join(data_dir, 'train/images_tiled')
-    mask_dir = os.path.join(data_dir, 'train/masks_tiled')
-    test_img_dir = os.path.join(data_dir, 'test/images_tiled')
-    test_mask_dir = os.path.join(data_dir, 'test/masks_tiled')
-
-    train_transform, test_transform = augmentations()
-
-    train_dataset = PlanesDataset(
-        img_dir=img_dir, mask_dir=mask_dir,
-        num_classes=args.get('config').get('classes'), transforms=train_transform,
-    )
-    test_dataset = PlanesDataset(
-        img_dir=test_img_dir, mask_dir=test_mask_dir,
-        num_classes=args.get('config').get('classes'), transforms=test_transform,
-    )
-
-    train_sampler = torch.utils.data.distributed.DistributedSampler(
-        train_dataset, num_replicas=dist_args.get('world-size'), rank=rank
-    )
-    test_sampler = torch.utils.data.distributed.DistributedSampler(
-        test_dataset, num_replicas=dist_args.get('world-size'), rank=rank
-    )
+def training_setup(gpu, args):
+    rank = None
+    if args.get('config').get('distributed'):
+        rank = dist_process_setup(args, gpu)
 
     hyper_params = args.get('hyper-params')
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=int(hyper_params.get('batch-size') / dist_args.get('ngpus')),
-        shuffle=(train_sampler is None),
-        num_workers=hyper_params.get('workers'),
-        collate_fn=my_collate_fn,
-        pin_memory=True,
-        sampler=train_sampler,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=int(hyper_params.get('batch-size') / dist_args.get('ngpus')),
-        num_workers=hyper_params.get('workers'),
-        collate_fn=my_collate_fn,
-        pin_memory=True,
-        sampler=test_sampler,
-    )
-
-    # Setup Model, optimiser and criterion
-    model = fcn_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
-    model = DDP(model, device_ids=[dist_args.get('gpu')])
+    train_loader, test_loader = get_data_loaders(args, rank)
+    model = get_model(args)
     optimizer = torch.optim.AdamW(model.parameters(), lr=hyper_params.get('learning-rate'))
     criterion = nn.BCEWithLogitsLoss()
 
-    # Setup analyser for model checkpoint saving
     analyser = ModelAnalyser(
         checkpoint_dir=args.get('config').get('checkpoint-dir'),
         run_name=args.get('config').get('run'),
     )
 
-    scaler = GradScaler()
+    scaler = None
+    if args.get('config').get('amp'):
+        scaler = GradScaler()
 
     # Training loop
     model = train(model=model,
@@ -225,7 +176,7 @@ def dist_train(gpu, args):
                   args=args,
                   rank=rank)
 
-    if rank == 0:
+    if is_main_node(rank):
         analyser.save_model(model=model,
                             epochs=hyper_params.get('epochs'),
                             optimizer=optimizer,
@@ -233,26 +184,24 @@ def dist_train(gpu, args):
                             batch_size=hyper_params.get('batch-size'),
                             lr=hyper_params.get('learning-rate'))
 
-    dist.destroy_process_group()
+    if args.get('config').get('distributed'):
+        dist.destroy_process_group()
 
 
 def main():
     args = read_config_file()
 
     print(f'Starting run: {args.get("config").get("run")}\n')
-
-    # Use GPU if available
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'AMP: {args.get("config").get("amp")}')
+    print(f'Channels Last: {args.get("config").get("channels-last")}')
+    print(f'Distributed: {args.get("config").get("distributed")}')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
-    # DDP Setup
-    if args.get("distributed").get('ngpus') is None:
-        args['distributed']['ngpus'] = torch.cuda.device_count()
-    args['distributed']['world-size'] = args.get("distributed").get('nodes') * args.get("distributed").get('ngpus')
-    os.environ['MASTER_ADDR'] = args.get("distributed").get('ip-address')
-    os.environ['MASTER_PORT'] = '12355'
-    os.environ['WORLD_SIZE'] = str(args.get("distributed").get('world-size'))
-    mp.spawn(dist_train, nprocs=args.get("distributed").get('ngpus'), args=(args,))
+    if args.get('config').get('distributed'):
+        dist_env_setup(args)
+        mp.spawn(training_setup, nprocs=args.get("distributed").get('ngpus'), args=(args,))
+    else:
+        training_setup(None, args)
 
 
 if __name__ == "__main__":
