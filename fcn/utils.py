@@ -24,9 +24,28 @@ def get_model(args):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         device_ids = [i for i in range(torch.cuda.device_count())]
         model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
-        model = DP(model, device_ids=device_ids).to(device)
+        model = DP(model, device_ids=device_ids)
+
+    model = model.to(memory_format=get_memory_format(args))
 
     return model
+
+
+def get_memory_format(args):
+    if args.get('config').get('channels-last'):
+        return torch.channels_last
+    else:
+        return torch.contiguous_format
+
+
+def get_device(args):
+    if args.get('config').get('distributed'):
+        gpu = args.get('distributed').get('gpu')
+        device = f'cuda:{gpu}'
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    return device
 
 
 def dist_env_setup(args):

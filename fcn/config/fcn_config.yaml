@@ -5,7 +5,7 @@ config:
   classes: 2
   amp: True
   channels-last: True
-  distributed: True
+  distributed: False
 
 hyper-params:
   batch-size: 16

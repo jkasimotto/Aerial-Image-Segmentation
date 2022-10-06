@@ -8,8 +8,17 @@ import time
 import wandb
 import torch.multiprocessing as mp
 import torch.distributed as dist
-from utils import read_config_file, get_data_loaders, is_main_node, get_model, dist_env_setup, dist_process_setup
 from torch.cuda.amp import autocast, GradScaler
+from utils import (
+    read_config_file,
+    get_data_loaders,
+    is_main_node,
+    get_model,
+    dist_env_setup,
+    dist_process_setup,
+    get_memory_format,
+    get_device,
+)
 
 
 def train(model, criterion, optimizer, train_loader, test_loader, analyser, args, scaler=None, rank=None):
@@ -85,15 +94,18 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, args, rank)
         print('[EPOCH TRAINING]')
 
     running_loss = 0
-    gpu = args.get('distributed').get('gpu')
     use_amp = args.get('config').get('amp')
+    device = get_device(args)
 
     model.train()
     for batch, (images, labels) in enumerate(tqdm(dataloader, disable=not is_main_node(rank))):
-        images, labels = images.cuda(gpu), labels.cuda(gpu)
+        images = images.to(device, memory_format=get_memory_format(args))
+        labels = labels.to(device, memory_format=get_memory_format(args))
+
         with autocast(enabled=use_amp):
             prediction = model(images)['out']
             loss = criterion(prediction, labels)
+
         optimizer.zero_grad(set_to_none=True)
 
         if use_amp:
@@ -114,19 +126,25 @@ def test(model, criterion, dataloader, args, rank):
     Performs validation on the current model. Calculates mIoU and dice score of the model.
     :return: tuple containing validation loss, mIoU accuracy and dice score
     """
-    if rank == 0:
+    if is_main_node(rank):
         print("[VALIDATING]")
-    ious, dice_scores = list(), list()
-    model.eval()
+
     running_loss = 0
-    gpu = args.get('distributed').get('gpu')
+    ious, dice_scores = list(), list()
+    use_amp = args.get('config').get('amp')
     num_classes = args.get('config').get('classes')
+    device = get_device(args)
+
+    model.eval()
     with torch.no_grad():
         for images, labels in tqdm(dataloader, disable=not is_main_node(rank)):
-            images, labels = images.cuda(gpu), labels.cuda(gpu)
-            with autocast():
+            images = images.to(device, memory_format=get_memory_format(args))
+            labels = labels.to(device, memory_format=get_memory_format(args))
+
+            with autocast(enabled=use_amp):
                 prediction = model(images)['out']
                 loss = criterion(prediction, labels)
+
             running_loss += loss.item()
             prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
             labels = labels.argmax(dim=1)
