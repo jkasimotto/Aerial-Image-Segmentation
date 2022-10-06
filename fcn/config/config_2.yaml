@@ -1,5 +1,5 @@
 config:
-  run: config_test_run
+  run: AMP-CL
   data-dir: /home/usyd-04a/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/fcn
   classes: 2
@@ -8,9 +8,9 @@ config:
   distributed: False
 
 hyper-params:
-  batch-size: 16
+  batch-size: 64
   learning-rate: 0.0001
-  epochs: 2
+  epochs: 10
   workers: 2
 
 distributed:
@@ -21,4 +21,4 @@ distributed:
 
 wandb:
   enabled: True
-  project-name: FCN-Test
+  project-name: FCN-Benchmark
