@@ -1,6 +1,6 @@
 config:
   run: No-Speedups
-  data-dir: /home/usyd-04a/synthetic/
+  data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/fcn
   classes: 2
   amp: False
@@ -11,7 +11,7 @@ hyper-params:
   batch-size: 64
   learning-rate: 0.0001
   epochs: 10
-  workers: 2
+  workers: 4
 
 distributed:
   nodes: 1

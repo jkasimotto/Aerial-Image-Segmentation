@@ -163,6 +163,8 @@ def test(model, criterion, dataloader, args, rank):
 
 
 def training_setup(gpu, args):
+    torch.manual_seed(0)
+
     # Setup process if distributed is enabled
     rank = None
     if args.get('config').get('distributed'):
@@ -225,6 +227,8 @@ def main():
     print(f'Channels Last: {args.get("config").get("channels-last")}')
     print(f'Distributed: {args.get("config").get("distributed")}')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
+
+    torch.cuda.empty_cache()
 
     if args.get('config').get('distributed'):
         dist_env_setup(args)

@@ -9,6 +9,8 @@ from torch.utils.data import DataLoader
 from torchvision.models.segmentation import fcn_resnet101
 from torch.nn.parallel import DistributedDataParallel as DDP, DataParallel as DP
 import torch.distributed as dist
+import numpy
+import random
 
 
 def is_main_node(rank):
@@ -67,7 +69,6 @@ def dist_process_setup(args, gpu):
         world_size=dist_args.get('world-size'),
         rank=rank,
     )
-    torch.manual_seed(0)
 
     torch.cuda.set_device(dist_args.get('gpu'))
 
@@ -140,6 +141,12 @@ def _get_datasets(args):
     return train_dataset, test_dataset
 
 
+def _seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2 ** 32
+    numpy.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
 def get_data_loaders(args, rank=None):
     train_dataset, test_dataset = _get_datasets(args)
 
@@ -155,6 +162,9 @@ def get_data_loaders(args, rank=None):
         )
         batch_size = int(hyper_params.get('batch-size') / dist_args.get('ngpus'))
 
+    g = torch.Generator()
+    g.manual_seed(0)
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -163,6 +173,8 @@ def get_data_loaders(args, rank=None):
         collate_fn=_collate_fn,
         pin_memory=True,
         sampler=train_sampler,
+        worker_init_fn=_seed_worker,
+        generator=g,
     )
     test_loader = DataLoader(
         test_dataset,
@@ -171,6 +183,8 @@ def get_data_loaders(args, rank=None):
         collate_fn=_collate_fn,
         pin_memory=True,
         sampler=test_sampler,
+        worker_init_fn=_seed_worker,
+        generator=g,
     )
 
     return train_loader, test_loader
