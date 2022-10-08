@@ -1,4 +1,4 @@
-from torchmetrics.functional import jaccard_index, dice
+afrom torchmetrics.functional import jaccard_index, dice
 from torchvision.models.segmentation import deeplabv3_resnet101
 from model_analyser import ModelAnalyzer
 from torch.utils.data import DataLoader
@@ -16,6 +16,11 @@ import os
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 import torch.multiprocessing as mp
+
+from utils import (
+    augmentations,
+    my_collate_fn
+)
 
 
 def train(model, criterion, optimizer, train_loader, test_loader, analyser, args, rank, num_gpus, use_wandb=False):
@@ -158,35 +163,6 @@ def command_line_args():
     return args
 
 
-def augmentations():
-    train_transforms = A.Compose([
-        A.Rotate(limit=35, p=1),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.1),
-        A.Normalize(
-            mean=[0.5, 0.5, 0.5],
-            std=[0.5, 0.5, 0.5],
-        ),
-        ToTensorV2()])
-
-    test_transforms = A.Compose([
-        A.Normalize(
-            mean=[0.5, 0.5, 0.5],
-            std=[0.5, 0.5, 0.5],
-        ),
-        ToTensorV2()])
-
-    return train_transforms, test_transforms
-
-
-def my_collate_fn(batch):
-    images, labels = [], []
-    for img, mask in batch:
-        images.append(img)
-        labels.append(mask)
-    images = torch.stack(images)
-    labels = torch.stack(labels)
-    return images, labels
 
 def dist_train(rank, args, num_gpus):
 
@@ -213,7 +189,7 @@ def dist_train(rank, args, num_gpus):
     torch.cuda.set_device(rank)
 
     # ----------------------
-    # CREATE DATASET
+    # CREATE DATASETda
     # ----------------------
 
     # Get train and test directory paths
