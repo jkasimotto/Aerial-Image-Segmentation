@@ -1,11 +1,11 @@
 config:
-  run: AMP-CL-DDP
+  run: No-Speedups
   data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/deeplab
   classes: 2
-  amp: True
-  channels-last: True
-  distributed: True
+  amp: False
+  channels-last: False
+  distributed: False
 
 hyper-params:
   batch-size: 64
