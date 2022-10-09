@@ -49,8 +49,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         train_epoch_loss = train_one_epoch(model, criterion, optimizer, scaler, train_loader, args, rank)
 
         # Epoch validation
-        # val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args, rank)
-        val_epoch_loss, epoch_iou, epoch_dice = 0, 0, 0
+        val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args, rank)
 
         # Log results to Weights and Biases
         if args.get('wandb').get('enabled') and is_main_node(rank):
@@ -198,7 +197,7 @@ def training_setup(gpu, args):
         scaler = GradScaler()
 
     if args.get('cuda-graphs').get('enabled'):
-        warmup(model, optimizer, criterion, train_loader, args)
+        cuda_graph_training(model, optimizer, criterion, train_loader, args)
         return
 
     # Training loop
@@ -225,10 +224,9 @@ def training_setup(gpu, args):
         dist.destroy_process_group()
 
 
-def warmup(model, optimizer, criterion, train_loader, args):
+def cuda_graph_training(model, optimizer, criterion, train_loader, args):
     dataloader = get_warmup_loader(args)
     device = get_device(args)
-    # device = 'cpu'
 
     s = torch.cuda.Stream()
     s.wait_stream(torch.cuda.current_stream())
