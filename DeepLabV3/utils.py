@@ -6,48 +6,23 @@ import torch
 import os
 from dataset import PlanesDataset
 from torch.utils.data import DataLoader
-from torchvision.models.segmentation import fcn_resnet101
+from torchvision.models.segmentation import deeplabv3_resnet101
 from torch.nn.parallel import DistributedDataParallel as DDP, DataParallel as DP
 import torch.distributed as dist
 import numpy
 import random
 
-
-def is_main_node(rank):
-    return rank is None or rank == 0
-
-
-def get_model(args):
-    if args.get('config').get('distributed'):
-        dist_args = args.get('distributed')
-        model = fcn_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
-        model = DDP(model, device_ids=[dist_args.get('gpu')])
-    else:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        device_ids = [i for i in range(torch.cuda.device_count())]
-        model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
-        model = DP(model, device_ids=device_ids)
-
-    model = model.to(memory_format=get_memory_format(args))
-
-    return model
+def read_config_file():
+    cla = _command_line_args()
+    with open(cla.config_file, "r") as stream:
+        return yaml.safe_load(stream)
 
 
-def get_memory_format(args):
-    if args.get('config').get('channels-last'):
-        return torch.channels_last
-    else:
-        return torch.contiguous_format
-
-
-def get_device(args):
-    if args.get('config').get('distributed'):
-        gpu = args.get('distributed').get('gpu')
-        device = f'cuda:{gpu}'
-    else:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    return device
+def _command_line_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config_file", help="path to config file")
+    args = parser.parse_args()
+    return args
 
 
 def dist_env_setup(args):
@@ -75,19 +50,6 @@ def dist_process_setup(args, gpu):
     return rank
 
 
-def read_config_file():
-    cla = _command_line_args()
-    with open(cla.config_file, "r") as stream:
-        return yaml.safe_load(stream)
-
-
-def _command_line_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config_file", help="path to config file")
-    args = parser.parse_args()
-    return args
-
-
 def _augmentations():
     train_transforms = A.Compose([
         A.Rotate(limit=35, p=1),
@@ -107,16 +69,6 @@ def _augmentations():
         ToTensorV2()])
 
     return train_transforms, test_transforms
-
-
-def _collate_fn(batch):
-    images, labels = [], []
-    for img, mask in batch:
-        images.append(img)
-        labels.append(mask)
-    images = torch.stack(images)
-    labels = torch.stack(labels)
-    return images, labels
 
 
 def _get_datasets(args):
@@ -141,11 +93,20 @@ def _get_datasets(args):
     return train_dataset, test_dataset
 
 
+def _collate_fn(batch):
+    images, labels = [], []
+    for img, mask in batch:
+        images.append(img)
+        labels.append(mask)
+    images = torch.stack(images)
+    labels = torch.stack(labels)
+    return images, labels
+
+
 def _seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2 ** 32
     numpy.random.seed(worker_seed)
     random.seed(worker_seed)
-
 
 def get_data_loaders(args, rank=None):
     train_dataset, test_dataset = _get_datasets(args)
@@ -170,6 +131,7 @@ def get_data_loaders(args, rank=None):
         batch_size=batch_size,
         shuffle=(train_sampler is None),
         num_workers=hyper_params.get('workers'),
+        drop_last=True,
         collate_fn=_collate_fn,
         pin_memory=True,
         sampler=train_sampler,
@@ -188,3 +150,40 @@ def get_data_loaders(args, rank=None):
     )
 
     return train_loader, test_loader
+
+
+def get_memory_format(args):
+    if args.get('config').get('channels-last'):
+        return torch.channels_last
+    else:
+        return torch.contiguous_format
+
+
+def get_device(args):
+    if args.get('config').get('distributed'):
+        gpu = args.get('distributed').get('gpu')
+        device = f'cuda:{gpu}'
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    return device
+
+
+def get_model(args):
+    if args.get('config').get('distributed'):
+        dist_args = args.get('distributed')
+        model = deeplabv3_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
+        model = DDP(model, device_ids=[dist_args.get('gpu')])
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device_ids = [i for i in range(torch.cuda.device_count())]
+        model = deeplabv3_resnet101(num_classes=args.get('config').get('classes')).to(device)
+        model = DP(model, device_ids=device_ids)
+
+    model = model.to(memory_format=get_memory_format(args))
+
+    return model
+
+
+def is_main_node(rank):
+    return rank is None or rank == 0
