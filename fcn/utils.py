@@ -18,13 +18,15 @@ def is_main_node(rank):
 
 
 def get_model(args):
-    if args.get('config').get('distributed'):
+    # return fcn_resnet101(num_classes=args.get('config').get('classes')).to('cpu').to(memory_format=get_memory_format(args))
+    if args.get('distributed').get('enabled'):
         dist_args = args.get('distributed')
         model = fcn_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
         model = DDP(model, device_ids=[dist_args.get('gpu')])
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         device_ids = [i for i in range(torch.cuda.device_count())]
+        device_ids = [0]
         model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
         model = DP(model, device_ids=device_ids)
 
@@ -34,14 +36,14 @@ def get_model(args):
 
 
 def get_memory_format(args):
-    if args.get('config').get('channels-last'):
+    if args.get('channels-last').get('enabled'):
         return torch.channels_last
     else:
         return torch.contiguous_format
 
 
 def get_device(args):
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         gpu = args.get('distributed').get('gpu')
         device = f'cuda:{gpu}'
     else:
@@ -153,7 +155,7 @@ def get_data_loaders(args, rank=None):
     dist_args, hyper_params = args.get('distributed'), args.get('hyper-params')
 
     train_sampler, test_sampler, batch_size = None, None, hyper_params.get('batch-size')
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         train_sampler = torch.utils.data.distributed.DistributedSampler(
             train_dataset, num_replicas=dist_args.get('world-size'), rank=rank
         )
@@ -175,6 +177,7 @@ def get_data_loaders(args, rank=None):
         sampler=train_sampler,
         worker_init_fn=_seed_worker,
         generator=g,
+        drop_last=True,
     )
     test_loader = DataLoader(
         test_dataset,
@@ -188,3 +191,35 @@ def get_data_loaders(args, rank=None):
     )
 
     return train_loader, test_loader
+
+
+def get_warmup_loader(args):
+    data_dir = args.get('config').get('data-dir')
+
+    img_dir = os.path.join(data_dir, 'train/images_tiled')
+    mask_dir = os.path.join(data_dir, 'train/masks_tiled')
+
+    train_transform, test_transform = _augmentations()
+
+    train_dataset = PlanesDataset(
+        img_dir=img_dir, mask_dir=mask_dir,
+        num_classes=args.get('config').get('classes'), transforms=train_transform,
+    )
+
+    hyper_params = args.get('hyper-params')
+
+    sampler = torch.utils.data.RandomSampler(
+        train_dataset,
+        num_samples=hyper_params.get('batch-size') * args.get('cuda-graphs').get('warmup-iters')
+    )
+
+    warmup_loader = DataLoader(
+        train_dataset,
+        batch_size=hyper_params.get('batch-size'),
+        shuffle=False,
+        num_workers=hyper_params.get('workers'),
+        pin_memory=True,
+        sampler=sampler,
+    )
+
+    return warmup_loader

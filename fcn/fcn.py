@@ -18,6 +18,7 @@ from utils import (
     dist_process_setup,
     get_memory_format,
     get_device,
+    get_warmup_loader,
 )
 
 
@@ -31,7 +32,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         print("| Training Model |")
         print("==================\n")
 
-    assert args.get('config').get('amp') == (scaler is not None), "Scaler should be not None if AMP is enabled"
+    assert args.get('amp').get('enabled') == (scaler is not None), "Scaler should be not None if AMP is enabled"
 
     start = time.time()
 
@@ -50,7 +51,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         # Epoch validation
         val_epoch_loss, epoch_iou, epoch_dice = test(model, criterion, test_loader, args, rank)
 
-        # Log results to Weights anf Biases
+        # Log results to Weights and Biases
         if args.get('wandb').get('enabled') and is_main_node(rank):
             wandb.log({
                 'train_loss': train_epoch_loss,
@@ -94,7 +95,7 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, args, rank)
         print('[EPOCH TRAINING]')
 
     running_loss = 0
-    use_amp = args.get('config').get('amp')
+    use_amp = args.get('amp').get('enabled')
     device = get_device(args)
 
     model.train()
@@ -131,7 +132,7 @@ def test(model, criterion, dataloader, args, rank):
 
     running_loss = 0
     ious, dice_scores = list(), list()
-    use_amp = args.get('config').get('amp')
+    use_amp = args.get('amp').get('enabled')
     num_classes = args.get('config').get('classes')
     device = get_device(args)
 
@@ -167,7 +168,7 @@ def training_setup(gpu, args):
 
     # Setup process if distributed is enabled
     rank = None
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         rank = dist_process_setup(args, gpu)
 
     hyper_params = args.get('hyper-params')
@@ -175,7 +176,7 @@ def training_setup(gpu, args):
     # Setup dataloaders, model, criterion and optimiser
     train_loader, test_loader = get_data_loaders(args, rank)
     model = get_model(args)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=hyper_params.get('learning-rate'))
+    optimizer = torch.optim.AdamW(model.parameters(), lr=hyper_params.get('learning-rate'), capturable=True)
     criterion = nn.BCEWithLogitsLoss()
 
     # Configure Weights and Biases
@@ -192,8 +193,12 @@ def training_setup(gpu, args):
 
     # Setup Gradient Scaler if AMP is enabled
     scaler = None
-    if args.get('config').get('amp'):
+    if args.get('amp').get('enabled'):
         scaler = GradScaler()
+
+    if args.get('cuda-graphs').get('enabled'):
+        cuda_graph_training(model, optimizer, criterion, train_loader, args)
+        return
 
     # Training loop
     model = train(model=model,
@@ -215,22 +220,64 @@ def training_setup(gpu, args):
                             lr=hyper_params.get('learning-rate'))
 
     # Clean up distributed process
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         dist.destroy_process_group()
+
+
+def cuda_graph_training(model, optimizer, criterion, train_loader, args):
+    dataloader = get_warmup_loader(args)
+    device = get_device(args)
+
+    s = torch.cuda.Stream()
+    s.wait_stream(torch.cuda.current_stream())
+    with torch.cuda.stream(s):
+        for batch, (images, labels) in enumerate(dataloader):
+            print(batch)
+            images = images.to(device, memory_format=get_memory_format(args))
+            labels = labels.to(device, memory_format=get_memory_format(args))
+            optimizer.zero_grad(set_to_none=True)
+            y_pred = model(images)['out']
+            loss = criterion(y_pred, labels)
+            loss.backward()
+            optimizer.step()
+    torch.cuda.current_stream().wait_stream(s)
+
+    capture_input = torch.empty(images.shape, device=device)
+    capture_target = torch.empty(labels.shape, device=device)
+
+    g = torch.cuda.CUDAGraph()
+    optimizer.zero_grad(set_to_none=True)
+    with torch.cuda.graph(g):
+        capture_y_pred = model(capture_input)['out']
+        capture_loss = criterion(capture_y_pred, capture_target)
+        capture_loss.backward()
+        optimizer.step()
+
+    start = time.time()
+    for epoch in range(args.get('hyper-params').get('epochs')):
+        for batch, (images, labels) in enumerate(tqdm(train_loader)):
+            # print(f'{batch}/{len(train_loader)}')
+            capture_input.copy_(images)
+            capture_target.copy_(labels)
+            g.replay()
+    end = time.time()
+
+    print(f"\nTraining took: {end - start:.2f}s")
 
 
 def main():
     args = read_config_file()
 
     print(f'Starting run: {args.get("config").get("run")}\n')
-    print(f'AMP: {args.get("config").get("amp")}')
-    print(f'Channels Last: {args.get("config").get("channels-last")}')
-    print(f'Distributed: {args.get("config").get("distributed")}')
-    print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
+    print(f'AMP: {args.get("amp").get("enabled")}')
+    print(f'Channels Last: {args.get("channels-last").get("enabled")}')
+    print(f'Distributed: {args.get("distributed").get("enabled")}')
+    print(f'CUDA Graphs: {args.get("cuda-graphs").get("enabled")}')
+    print(f'GPU available: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
     torch.cuda.empty_cache()
 
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         dist_env_setup(args)
         mp.spawn(training_setup, nprocs=args.get("distributed").get('ngpus'), args=(args,))
     else:
