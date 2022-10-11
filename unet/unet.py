@@ -106,7 +106,7 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, args, rank)
         labels = labels.to(device, memory_format=get_memory_format(args))
 
         with autocast(enabled=use_amp):
-            prediction = model(images)['out']
+            prediction = model(images).squeeze(dim=1)
             loss = criterion(prediction, labels)
 
         optimizer.zero_grad(set_to_none=True)
@@ -158,11 +158,11 @@ def test(model, criterion, dataloader, args, rank):
             labels = labels.to(device, memory_format=get_memory_format(args))
 
             with autocast(enabled=use_amp):
-                prediction = model(images)['out']
+                prediction = model(images).squeeze(dim=1)
                 loss = criterion(prediction, labels)
 
             running_loss += loss.item()
-            prediction = prediction.softmax(dim=1).argmax(dim=1).squeeze(1)
+            prediction = torch.sigmoid(prediction) > 0.5
             labels = labels.argmax(dim=1)
             iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
             dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()

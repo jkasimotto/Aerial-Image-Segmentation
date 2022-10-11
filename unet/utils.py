@@ -19,12 +19,12 @@ def is_main_node(rank):
 def get_model(args):
     if args.get('config').get('distributed'):
         dist_args = args.get('distributed')
-        model = UNET(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
+        model = UNET(in_channels=3, out_channels=1).cuda(dist_args.get('gpu'))
         model = DDP(model, device_ids=[dist_args.get('gpu')])
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         device_ids = [i for i in range(torch.cuda.device_count())]
-        model = UNET(num_classes=args.get('config').get('classes')).to(device)
+        model = UNET(in_channels=3, out_channels=1).to(device)
         model = DP(model, device_ids=device_ids)
 
     model = model.to(memory_format=get_memory_format(args))
