@@ -103,11 +103,17 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, args, rank)
     model.train()
     for batch, (images, labels) in enumerate(tqdm(dataloader, disable=not is_main_node(rank))):
         images = images.to(device, memory_format=get_memory_format(args))
+        if args.get('config').get('channels-last'):
+            labels = labels.unsqueeze(dim=1)
         labels = labels.to(device, memory_format=get_memory_format(args))
 
         with autocast(enabled=use_amp):
+            if args.get('config').get('channels-last'):
+                labels = labels.squeeze(dim=1)
             prediction = model(images).squeeze(dim=1)
             loss = criterion(prediction, labels)
+            if args.get('config').get('channels-last'):
+                labels = labels.unsqueeze(dim=1)
 
         optimizer.zero_grad(set_to_none=True)
 
@@ -155,17 +161,24 @@ def test(model, criterion, dataloader, args, rank):
     with torch.no_grad():
         for images, labels in tqdm(dataloader, disable=not is_main_node(rank)):
             images = images.to(device, memory_format=get_memory_format(args))
+            if args.get('config').get('channels-last'):
+                labels = labels.unsqueeze(dim=1)
             labels = labels.to(device, memory_format=get_memory_format(args))
 
             with autocast(enabled=use_amp):
+                if args.get('config').get('channels-last'):
+                    labels = labels.squeeze(dim=1)
                 prediction = model(images).squeeze(dim=1)
                 loss = criterion(prediction, labels)
+                if args.get('config').get('channels-last'):
+                    labels = labels.unsqueeze(dim=1)
+
 
             running_loss += loss.item()
             prediction = torch.sigmoid(prediction) > 0.5
-            labels = labels.argmax(dim=1)
-            iou = jaccard_index(prediction, labels, num_classes=num_classes).item()
-            dice_score = dice(prediction, labels, num_classes=num_classes, ignore_index=0).item()
+            # labels = labels.argmax(dim=1)
+            iou = jaccard_index(prediction, labels.int(), num_classes=num_classes).item()
+            dice_score = dice(prediction, labels.int(), num_classes=num_classes, ignore_index=0).item()
             ious.append(iou), dice_scores.append(dice_score)
 
     test_loss = running_loss / len(dataloader)

@@ -39,17 +39,19 @@ class PlanesDataset(Dataset):
         # Split mask into binary masks for each class
         mask = np.array(mask)
         color_ids = np.unique(mask)  # find all unique colors in mask
-        masks = (mask == color_ids[:, None, None])
+        # masks = (mask == color_ids[:, None, None])
 
-        # Add empty masks if needed for remaining classes if removed by transforms
-        if masks.shape[0] < self.num_classes:
-            for i in range(self.num_classes - 1):
-                x = np.expand_dims(np.zeros_like(mask), axis=0)
-                masks = np.concatenate((masks, x))
+        # # Add empty masks if needed for remaining classes if removed by transforms
+        # if masks.shape[0] < self.num_classes:
+        #     for i in range(self.num_classes - 1):
+        #         x = np.expand_dims(np.zeros_like(mask), axis=0)
+        #         masks = np.concatenate((masks, x))
 
-        masks = torch.as_tensor(masks, dtype=torch.float32)
+        # masks = torch.as_tensor(masks, dtype=torch.float32)
+        mask = torch.as_tensor(mask, dtype=torch.float32)
 
-        return image, masks
+
+        return image, mask
 
 
 # class PlanesDataset(Dataset):
