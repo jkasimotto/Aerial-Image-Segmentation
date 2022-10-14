@@ -176,7 +176,8 @@ def training_setup(gpu, args):
     # Setup dataloaders, model, criterion and optimiser
     train_loader, test_loader = get_data_loaders(args, rank)
     model = get_model(args)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=hyper_params.get('learning-rate'), capturable=True)
+    capture = args.get('cuda-graphs').get('enabled')
+    optimizer = torch.optim.AdamW(model.parameters(), lr=hyper_params.get('learning-rate'), capturable=capture)
     criterion = nn.BCEWithLogitsLoss()
 
     # Configure Weights and Biases
@@ -228,11 +229,11 @@ def cuda_graph_training(model, optimizer, criterion, train_loader, args):
     dataloader = get_warmup_loader(args)
     device = get_device(args)
 
+    print(f'\nWarming up ({len(dataloader)})')
     s = torch.cuda.Stream()
     s.wait_stream(torch.cuda.current_stream())
     with torch.cuda.stream(s):
-        for batch, (images, labels) in enumerate(dataloader):
-            print(batch)
+        for batch, (images, labels) in enumerate(tqdm(dataloader)):
             images = images.to(device, memory_format=get_memory_format(args))
             labels = labels.to(device, memory_format=get_memory_format(args))
             optimizer.zero_grad(set_to_none=True)
@@ -253,10 +254,10 @@ def cuda_graph_training(model, optimizer, criterion, train_loader, args):
         capture_loss.backward()
         optimizer.step()
 
+    print("\nTraining")
     start = time.time()
     for epoch in range(args.get('hyper-params').get('epochs')):
         for batch, (images, labels) in enumerate(tqdm(train_loader)):
-            # print(f'{batch}/{len(train_loader)}')
             capture_input.copy_(images)
             capture_target.copy_(labels)
             g.replay()
