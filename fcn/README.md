@@ -74,6 +74,9 @@ wandb:
   project-name: FCN-Benchmark
 ```
 
+The various speed up techniques such as AMP, channels last memory format and distributed data parallel can be turned on in the config file. Simply set
+the associated `enabled` field to `True`.
+
 ### Outputs
 Model checkpoints and graphs will be saved in the `checkpoint_dir` directory. Given a run name of 'fcn', five outputs should be produced which include
 the following:
