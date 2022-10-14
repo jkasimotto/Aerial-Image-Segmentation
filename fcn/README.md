@@ -22,40 +22,56 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: fcn.py [-h] [-r RUN_NAME] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-wandb] [--nodes NODES] [--local-ranks LOCAL_RANKS]
-              [--ip-address IP_ADDRESS] [--ngpus NGPUS]
-              data_dir checkpoint_dir
+usage: fcn.py [-h] config_file
 
 positional arguments:
-  data_dir              path to directory containing test and train images
-  checkpoint_dir        path to directory for model checkpoint to be saved
+  config_file  path to config file
 
 options:
-  -h, --help            show this help message and exit
-  -r RUN_NAME, --run-name RUN_NAME
-                        used for naming output files
-  -b BATCH_SIZE, --batch-size BATCH_SIZE
-                        dataloader batch size
-  -lr LEARNING_RATE, --learning-rate LEARNING_RATE
-                        learning rate to be applied to the model
-  -e EPOCHS, --epochs EPOCHS
-                        number of epochs to train the model for
-  -w WORKERS, --workers WORKERS
-                        number of workers used in the dataloader
-  -n NUM_CLASSES, --num-classes NUM_CLASSES
-                        number of classes for semantic segmentation
-  -wandb, --wandb       use weights and biases to log run
-  --nodes NODES         Number of nodes in the network for training
-  --local-ranks LOCAL_RANKS
-                        Node's order number in [0, num_of_nodes-1]
-  --ip-address IP_ADDRESS
-                        ip address of the host node
-  --ngpus NGPUS         number of gpus per node
+  -h, --help   show this help message and exit
 ```
 
 Example
 ```commandline
-python fcn.py /home/usyd-04a/sample/synthetic/ /home/usyd-04a/checkpoints/fcn -r "test" -b 16 -lr 0.0001 -e 10
+python fcn.py test_config.yaml
+```
+
+### Config File
+An example config file is provided below:
+
+```yaml
+config:
+  run: demo
+  data-dir: /home/usyd-04a/synthetic/
+  checkpoint-dir: /home/usyd-04a/checkpoints/fcn
+  classes: 2
+
+hyper-params:
+  batch-size: 8
+  learning-rate: 0.0001
+  epochs: 3
+  workers: 4
+
+amp:
+  enabled: False
+
+channels-last:
+  enabled: False
+
+distributed:
+  enabled: False
+  nodes: 1
+  ip-address: localhost
+  ngpus: null
+  local-ranks: 0
+
+cuda-graphs:
+  enabled: False
+  warmup-iters: 5
+
+wandb:
+  enabled: False
+  project-name: FCN-Benchmark
 ```
 
 ### Outputs
