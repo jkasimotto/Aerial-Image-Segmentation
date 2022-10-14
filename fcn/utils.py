@@ -18,15 +18,17 @@ def is_main_node(rank):
 
 
 def get_model(args):
-    # return fcn_resnet101(num_classes=args.get('config').get('classes')).to('cpu').to(memory_format=get_memory_format(args))
-    if args.get('distributed').get('enabled'):
+    if args.get('cuda-graphs').get('enabled'):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
+        model = DP(model, device_ids=[0])
+    elif args.get('distributed').get('enabled'):
         dist_args = args.get('distributed')
         model = fcn_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
         model = DDP(model, device_ids=[dist_args.get('gpu')])
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         device_ids = [i for i in range(torch.cuda.device_count())]
-        device_ids = [0]
         model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
         model = DP(model, device_ids=device_ids)
 
@@ -219,6 +221,7 @@ def get_warmup_loader(args):
         shuffle=False,
         num_workers=hyper_params.get('workers'),
         pin_memory=True,
+        drop_last=True,
         sampler=sampler,
     )
 
