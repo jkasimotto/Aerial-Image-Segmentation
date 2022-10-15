@@ -1,17 +1,11 @@
 from torchmetrics.functional import jaccard_index, dice
-from torchvision.models.segmentation import deeplabv3_resnet101
 from model_analyser import ModelAnalyser
-from torch.utils.data import DataLoader
 from torch import nn
-from dataset import PlanesDataset
 import numpy as np
 from tqdm import tqdm
 import time
-import argparse
 import wandb
 import torch
-import os
-from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.cuda.amp import autocast, GradScaler

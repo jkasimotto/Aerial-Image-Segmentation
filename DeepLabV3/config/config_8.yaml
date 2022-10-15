@@ -20,5 +20,5 @@ distributed:
   local-ranks: 0
 
 wandb:
-  enabled: True
+  enabled: False
   project-name: DeepLabV3-Benchmark

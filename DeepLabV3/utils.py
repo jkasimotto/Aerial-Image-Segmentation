@@ -28,8 +28,8 @@ def _command_line_args():
 def dist_env_setup(args):
     if args.get("distributed").get('ngpus') is None:
         args['distributed']['ngpus'] = torch.cuda.device_count()
-    args['distributed']['world-size'] = args.get("distributed").get('nodes') * args.get("distributed").get('ngpus')
-    os.environ['MASTER_ADDR'] = args.get("distributed").get('ip-address')
+    args['distributed']['world-size'] = args.get('distributed').get('nodes') * args.get("distributed").get('ngpus')
+    os.environ['MASTER_ADDR'] = args.get('distributed').get('ip-address')
     os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(args.get("distributed").get('world-size'))
 
