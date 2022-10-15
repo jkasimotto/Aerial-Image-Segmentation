@@ -1,0 +1,28 @@
+config:
+  run: trial
+  data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
+  checkpoint-dir: /home/usyd-04a/checkpoints/deeplab
+  classes: 2
+
+hyper-params:
+  batch-size: 8
+  learning-rate: 0.0001
+  epochs: 3
+  workers: 4
+
+amp:
+  enabled: False
+
+channels-last:
+  enabled: False
+
+distributed:
+  enabled: True
+  nodes: 1
+  ip-address: localhost
+  ngpus: null
+  local-ranks: 0
+
+wandb:
+  enabled: False
+  project-name: DeepLabV3-Benchmark

@@ -33,7 +33,7 @@ def train(model, criterion, optimizer, train_loader, test_loader, analyser, args
         print("| Training Model |")
         print("==================\n")
 
-    assert args.get('config').get('amp') == (scaler is not None), "Scaler should be not None if AMP is enabled"
+    assert args.get('amp').get('enabled') == (scaler is not None), "Scaler should be not None if AMP is enabled"
 
     # Time how long it takes to train the model
     start = time.time()
@@ -95,7 +95,7 @@ def train_one_epoch(model, criterion, optimizer, scaler, dataloader, args, rank)
         print('[EPOCH TRAINING]')
 
     running_loss = 0
-    use_amp = args.get('config').get('amp')
+    use_amp = args.get('amp').get('enabled')
     device = get_device(args)
 
     # Set model in training mode
@@ -134,7 +134,7 @@ def test(model, criterion, dataloader, args, rank):
 
     running_loss = 0
     ious, dice_scores = list(), list()
-    use_amp = args.get('config').get('amp')
+    use_amp = args.get('amp').get('enabled')
     num_classes = args.get('config').get('classes')
     device = get_device(args)
 
@@ -175,7 +175,7 @@ def training_setup(gpu, args):
 
     # Setup process if distributed is enabled
     rank = None
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         rank = dist_process_setup(args, gpu)
 
     hyper_params = args.get('hyper-params')
@@ -200,7 +200,7 @@ def training_setup(gpu, args):
 
     # Setup Gradient Scaler if AMP is enabled
     scaler = None
-    if args.get('config').get('amp'):
+    if args.get('amp').get('enabled'):
         scaler = GradScaler()
 
     # Training loop
@@ -223,7 +223,7 @@ def training_setup(gpu, args):
                             lr=hyper_params.get('learning-rate'))
 
     # Clean up distributed process
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         dist.destroy_process_group()
 
 
@@ -232,14 +232,14 @@ def main():
     args = read_config_file()
 
     print(f'Starting run: {args.get("config").get("run")}\n')
-    print(f'AMP: {args.get("config").get("amp")}')
-    print(f'Channels Last: {args.get("config").get("channels-last")}')
-    print(f'Distributed: {args.get("config").get("distributed")}')
+    print(f'AMP: {args.get("amp")}')
+    print(f'Channels Last: {args.get("channels-last")}')
+    print(f'Distributed: {args.get("distributed")}')
     print(f'GPU avaliable: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
     torch.cuda.empty_cache()
 
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         dist_env_setup(args)
         mp.spawn(training_setup, nprocs=args.get("distributed").get('ngpus'), args=(args,))
     else:
