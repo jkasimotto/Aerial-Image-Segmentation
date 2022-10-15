@@ -28,8 +28,8 @@ def _command_line_args():
 def dist_env_setup(args):
     if args.get("distributed").get('ngpus') is None:
         args['distributed']['ngpus'] = torch.cuda.device_count()
-    args['distributed']['world-size'] = args.get("distributed").get('nodes') * args.get("distributed").get('ngpus')
-    os.environ['MASTER_ADDR'] = args.get("distributed").get('ip-address')
+    args['distributed']['world-size'] = args.get('distributed').get('nodes') * args.get("distributed").get('ngpus')
+    os.environ['MASTER_ADDR'] = args.get('distributed').get('ip-address')
     os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(args.get("distributed").get('world-size'))
 
@@ -114,7 +114,7 @@ def get_data_loaders(args, rank=None):
     dist_args, hyper_params = args.get('distributed'), args.get('hyper-params')
 
     train_sampler, test_sampler, batch_size = None, None, hyper_params.get('batch-size')
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         train_sampler = torch.utils.data.distributed.DistributedSampler(
             train_dataset, num_replicas=dist_args.get('world-size'), rank=rank
         )
@@ -153,14 +153,14 @@ def get_data_loaders(args, rank=None):
 
 
 def get_memory_format(args):
-    if args.get('config').get('channels-last'):
+    if args.get('channels-last').get('enabled'):
         return torch.channels_last
     else:
         return torch.contiguous_format
 
 
 def get_device(args):
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         gpu = args.get('distributed').get('gpu')
         device = f'cuda:{gpu}'
     else:
@@ -170,7 +170,7 @@ def get_device(args):
 
 
 def get_model(args):
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         dist_args = args.get('distributed')
         model = deeplabv3_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
         model = DDP(model, device_ids=[dist_args.get('gpu')])

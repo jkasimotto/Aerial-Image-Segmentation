@@ -1,19 +1,23 @@
 config:
-  run: No-Speedups
+  run: trial
   data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/deeplab
   classes: 2
-  amp: False
-  channels-last: False
-  distributed: False
 
 hyper-params:
-  batch-size: 64
+  batch-size: 60
   learning-rate: 0.0001
-  epochs: 10
+  epochs: 5
   workers: 4
 
+amp:
+  enabled: False
+
+channels-last:
+  enabled: False
+
 distributed:
+  enabled: True
   nodes: 1
   ip-address: localhost
   ngpus: null
