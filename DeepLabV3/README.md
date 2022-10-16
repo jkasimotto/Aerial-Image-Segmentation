@@ -20,33 +20,60 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: DeepLabV3.py [-h] [-c CHECKPOINT] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-wandb] data_dir checkpoint_dir
+usage: DeepLabV3.py [-h] config_file
 
 positional arguments:
-  data_dir              path to directory containing test and train images
-  checkpoint_dir        directory for model checkpoint to be saved as
+  config_file  path to config file
 
-options:
-  -h, --help            show this help message and exit
-  -c CHECKPOINT, --checkpoint CHECKPOINT
-                        used for naming output files
-  -b BATCH_SIZE, --batch-size BATCH_SIZE
-                        dataloader batch size
-  -lr LEARNING_RATE, --learning-rate LEARNING_RATE
-                        learning rate to be applied to the model
-  -e EPOCHS, --epochs EPOCHS
-                        number of epochs to train the model for
-  -w WORKERS, --workers WORKERS
-                        number of workers used in the dataloader
-  -n NUM_CLASSES, --num-classes NUM_CLASSES
-                        number of classes for semantic segmentation
-  -wandb, --wandb       use weights and biases to log run
+optional arguments:
+  -h, --help   show this help message and exit
+
 ```
 
 Example
 ```commandline
-python DeepLabV3.py -r "trial" -b 16 -lr 0.0005 -e 2 -w 2 -n 2 /home/usyd-04a/synthetic/ /home/usyd-04a/checkpoints/deeplab
+python DeepLabV3.py config/config.yaml
 ```
+
+### Config File
+An example config file is provided below:
+```commandline
+config:
+  run: trial
+  data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
+  checkpoint-dir: /home/usyd-04a/checkpoints/deeplab
+  classes: 2
+
+hyper-params:
+  batch-size: 60
+  learning-rate: 0.0001
+  epochs: 5
+  workers: 4
+
+amp:
+  enabled: False
+
+channels-last:
+  enabled: False
+
+distributed:
+  enabled: True
+  nodes: 1
+  ip-address: localhost
+  ngpus: null
+  local-ranks: 0
+
+wandb:
+  enabled: False
+  project-name: DeepLabV3-Benchmark
+```
+
+### Benchmarking
+Benchmark can be run with the config/benchmark.sh script:
+```commandline
+./config/benchmark.sh
+```
+
 
 ---
 
