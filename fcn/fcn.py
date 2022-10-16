@@ -226,6 +226,7 @@ def training_setup(gpu, args):
 
 
 def cuda_graph_training(optimizer, criterion, train_loader, args, rank):
+    warmup_loader = get_warmup_loader(args, rank)
     device = get_device(args)
 
     if is_main_node(rank):
@@ -236,7 +237,7 @@ def cuda_graph_training(optimizer, criterion, train_loader, args, rank):
     with torch.cuda.stream(s):
         model = get_model(args)
         for _ in tqdm(range(args.get('cuda-graphs').get('warmup-iters')), disable=not is_main_node(rank)):
-            for batch, (images, labels) in enumerate(train_loader):
+            for batch, (images, labels) in enumerate(warmup_loader):
                 images = images.to(device, memory_format=get_memory_format(args))
                 labels = labels.to(device, memory_format=get_memory_format(args))
                 optimizer.zero_grad(set_to_none=True)

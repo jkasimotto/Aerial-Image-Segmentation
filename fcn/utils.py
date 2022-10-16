@@ -223,9 +223,11 @@ def get_warmup_loader(args, rank):
         train_dataset, num_replicas=dist_args.get('world-size'), rank=rank,
     )
 
+    batch_size = int(hyper_params.get('batch-size') / dist_args.get('ngpus'))
+
     warmup_loader = DataLoader(
         train_dataset,
-        batch_size=hyper_params.get('batch-size'),
+        batch_size=batch_size,
         shuffle=False,
         num_workers=hyper_params.get('workers'),
         pin_memory=True,
