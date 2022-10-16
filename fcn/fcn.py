@@ -198,7 +198,7 @@ def training_setup(gpu, args):
         scaler = GradScaler()
 
     if args.get('cuda-graphs').get('enabled'):
-        cuda_graph_training(model, optimizer, criterion, train_loader, args)
+        cuda_graph_training(optimizer, criterion, train_loader, args, rank)
         return
 
     # Training loop
@@ -225,22 +225,25 @@ def training_setup(gpu, args):
         dist.destroy_process_group()
 
 
-def cuda_graph_training(model, optimizer, criterion, train_loader, args):
-    dataloader = get_warmup_loader(args)
+def cuda_graph_training(optimizer, criterion, train_loader, args, rank):
     device = get_device(args)
 
-    print(f'\nWarming up ({len(dataloader)})')
+    if is_main_node(rank):
+        print(f'\nWarming up')
+
     s = torch.cuda.Stream()
     s.wait_stream(torch.cuda.current_stream())
     with torch.cuda.stream(s):
-        for batch, (images, labels) in enumerate(tqdm(dataloader)):
-            images = images.to(device, memory_format=get_memory_format(args))
-            labels = labels.to(device, memory_format=get_memory_format(args))
-            optimizer.zero_grad(set_to_none=True)
-            y_pred = model(images)['out']
-            loss = criterion(y_pred, labels)
-            loss.backward()
-            optimizer.step()
+        model = get_model(args)
+        for _ in tqdm(range(args.get('cuda-graphs').get('warmup-iters')), disable=not is_main_node(rank)):
+            for batch, (images, labels) in enumerate(train_loader):
+                images = images.to(device, memory_format=get_memory_format(args))
+                labels = labels.to(device, memory_format=get_memory_format(args))
+                optimizer.zero_grad(set_to_none=True)
+                y_pred = model(images)['out']
+                loss = criterion(y_pred, labels)
+                loss.backward()
+                optimizer.step()
     torch.cuda.current_stream().wait_stream(s)
 
     capture_input = torch.empty(images.shape, device=device)
@@ -254,16 +257,19 @@ def cuda_graph_training(model, optimizer, criterion, train_loader, args):
         capture_loss.backward()
         optimizer.step()
 
-    print("\nTraining")
+    if is_main_node(rank):
+        print("\nTraining")
+
     start = time.time()
     for epoch in range(args.get('hyper-params').get('epochs')):
-        for batch, (images, labels) in enumerate(tqdm(train_loader)):
+        for batch, (images, labels) in enumerate(tqdm(train_loader, disable=not is_main_node(rank))):
             capture_input.copy_(images)
             capture_target.copy_(labels)
             g.replay()
     end = time.time()
 
-    print(f"\nTraining took: {end - start:.2f}s")
+    if is_main_node(rank):
+        print(f"\nTraining took: {end - start:.2f}s")
 
 
 def main():

@@ -18,11 +18,11 @@ def is_main_node(rank):
 
 
 def get_model(args):
-    if args.get('cuda-graphs').get('enabled'):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
-        model = DP(model, device_ids=[0])
-    elif args.get('distributed').get('enabled'):
+    # if args.get('cuda-graphs').get('enabled'):
+    #     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #     model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
+    #     model = DP(model, device_ids=[0])
+    if args.get('distributed').get('enabled'):
         dist_args = args.get('distributed')
         model = fcn_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
         model = DDP(model, device_ids=[dist_args.get('gpu')])
@@ -67,6 +67,9 @@ def dist_process_setup(args, gpu):
     args['distributed']['gpu'] = gpu
     dist_args = args.get('distributed')
     rank = dist_args.get('local-ranks') * dist_args.get('ngpus') + gpu
+
+    if args.get('cuda-graphs').get('enabled'):
+        os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
 
     dist.init_process_group(
         backend='nccl',
@@ -195,8 +198,9 @@ def get_data_loaders(args, rank=None):
     return train_loader, test_loader
 
 
-def get_warmup_loader(args):
+def get_warmup_loader(args, rank):
     data_dir = args.get('config').get('data-dir')
+    dist_args = args.get('distributed')
 
     img_dir = os.path.join(data_dir, 'train/images_tiled')
     mask_dir = os.path.join(data_dir, 'train/masks_tiled')
@@ -210,9 +214,13 @@ def get_warmup_loader(args):
 
     hyper_params = args.get('hyper-params')
 
-    sampler = torch.utils.data.RandomSampler(
-        train_dataset,
-        num_samples=hyper_params.get('batch-size') * args.get('cuda-graphs').get('warmup-iters')
+    # sampler = torch.utils.data.RandomSampler(
+    #     train_dataset,
+    #     num_samples=hyper_params.get('batch-size') * args.get('cuda-graphs').get('warmup-iters')
+    # )
+
+    sampler = torch.utils.data.distributed.DistributedSampler(
+        train_dataset, num_replicas=dist_args.get('world-size'), rank=rank,
     )
 
     warmup_loader = DataLoader(

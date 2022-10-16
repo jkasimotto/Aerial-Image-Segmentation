@@ -25,7 +25,10 @@ distributed:
 
 cuda-graphs:
   enabled: True
-  warmup-iters: 5
+  warmup-iters: 1
+
+meProp:
+  enabled: False
 
 wandb:
   enabled: False
