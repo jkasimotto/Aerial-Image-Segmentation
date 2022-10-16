@@ -18,10 +18,6 @@ def is_main_node(rank):
 
 
 def get_model(args):
-    # if args.get('cuda-graphs').get('enabled'):
-    #     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    #     model = fcn_resnet101(num_classes=args.get('config').get('classes')).to(device)
-    #     model = DP(model, device_ids=[0])
     if args.get('distributed').get('enabled'):
         dist_args = args.get('distributed')
         model = fcn_resnet101(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
