@@ -11,7 +11,7 @@ hyper-params:
   workers: 6
 
 amp:
-  enabled: False
+  enabled: True
 
 channels-last:
   enabled: False
@@ -24,7 +24,7 @@ distributed:
   local-ranks: 0
 
 cuda-graphs:
-  enabled: True
+  enabled: False
   warmup-iters: 1
 
 meProp:
