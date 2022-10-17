@@ -5,13 +5,13 @@ config:
   classes: 2
 
 hyper-params:
-  batch-size: 8
+  batch-size: 16
   learning-rate: 0.0001
-  epochs: 3
-  workers: 4
+  epochs: 1
+  workers: 6
 
 amp:
-  enabled: False
+  enabled: True
 
 channels-last:
   enabled: False
@@ -24,8 +24,11 @@ distributed:
   local-ranks: 0
 
 cuda-graphs:
-  enabled: True
-  warmup-iters: 5
+  enabled: False
+  warmup-iters: 1
+
+meProp:
+  enabled: False
 
 wandb:
   enabled: False
