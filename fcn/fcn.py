@@ -200,13 +200,14 @@ def training_setup(gpu, args):
         scaler = GradScaler()
 
     if args.get('cuda-graphs').get('enabled'):
+        device = get_device(args)
+        use_amp = args.get('amp').get('enabled')
+        warmup_loader = get_warmup_loader(args, rank)
         try:
-            cuda_graph_training(optimizer, criterion, train_loader, args, rank, test_loader, scaler)
-        except Exception as e:
-            print(e)
+            cudagraphs.run(args, criterion, optimizer, warmup_loader, train_loader, scaler, device, rank, use_amp)
+        except:
             traceback.print_exc()
-            if args.get('distributed').get('enabled'):
-                dist.destroy_process_group()
+            dist.destroy_process_group()
         return
 
     # Training loop
@@ -231,87 +232,6 @@ def training_setup(gpu, args):
     # Clean up distributed process
     if args.get('distributed').get('enabled'):
         dist.destroy_process_group()
-
-
-def cuda_graph_training(optimizer, criterion, train_loader, args, rank, test_loader, scaler=None):
-    warmup_loader = get_warmup_loader(args, rank)
-    device = get_device(args)
-    use_amp = args.get('amp').get('enabled')
-
-    if is_main_node(rank):
-        print(f'\nWarming up')
-
-    # CUDA Graphs Warming Up Iteration
-
-    # model, input_shape, label_shape = cudagraphs.warm_up(
-    #     args=args,
-    #     criterion=criterion,
-    #     optimizer=optimizer,
-    #     scaler=scaler,
-    #     device=device,
-    #     dataloader=warmup_loader,
-    #     rank=rank,
-    #     use_amp=use_amp,
-    # )
-
-    model, input_shape, label_shape = cudagraphs.warm_up_val(
-        args=args,
-        criterion=criterion,
-        device=device,
-        dataloader=test_loader,
-        rank=rank,
-        use_amp=use_amp,
-    )
-
-    # CUDA Graphs Capture
-
-    # g, capture_input, capture_target = cudagraphs.capture(
-    #     input_shape=input_shape,
-    #     label_shape=label_shape,
-    #     device=device,
-    #     optimizer=optimizer,
-    #     use_amp=use_amp,
-    #     model=model,
-    #     criterion=criterion,
-    #     scaler=scaler,
-    # )
-
-    g, capture_input, capture_target, capture_stats = cudagraphs.capture_val(
-        input_shape=input_shape,
-        label_shape=label_shape,
-        device=device,
-        optimizer=optimizer,
-        use_amp=use_amp,
-        model=model,
-        criterion=criterion,
-        args=args,
-    )
-
-    return
-
-    if is_main_node(rank):
-        print("\nTraining")
-
-    # Training on real data
-
-    start = time.time()
-
-    cudagraphs.train(
-        args=args,
-        optimizer=optimizer,
-        train_loader=train_loader,
-        rank=rank,
-        capture_input=capture_input,
-        capture_target=capture_target,
-        g=g,
-        use_amp=use_amp,
-        scaler=scaler,
-    )
-
-    end = time.time()
-
-    if is_main_node(rank):
-        print(f"\nTraining took: {end - start:.2f}s")
 
 
 def main():

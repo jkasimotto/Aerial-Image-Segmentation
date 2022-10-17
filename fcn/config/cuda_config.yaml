@@ -1,11 +1,11 @@
 config:
   run: Cuda-graphs
-  data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
+  data-dir: /home/usyd-04a/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/fcn
   classes: 2
 
 hyper-params:
-  batch-size: 32
+  batch-size: 16
   learning-rate: 0.0001
   epochs: 1
   workers: 6
