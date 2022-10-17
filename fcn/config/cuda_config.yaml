@@ -11,7 +11,7 @@ hyper-params:
   workers: 6
 
 amp:
-  enabled: True
+  enabled: False
 
 channels-last:
   enabled: False

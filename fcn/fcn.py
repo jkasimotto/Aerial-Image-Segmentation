@@ -21,6 +21,7 @@ from utils import (
     get_warmup_loader,
 )
 import traceback
+import cudagraphs
 
 
 def train(model, criterion, optimizer, train_loader, test_loader, analyser, args, scaler=None, rank=None):
@@ -200,7 +201,7 @@ def training_setup(gpu, args):
 
     if args.get('cuda-graphs').get('enabled'):
         try:
-            cuda_graph_training(optimizer, criterion, train_loader, args, rank, scaler)
+            cuda_graph_training(optimizer, criterion, train_loader, args, rank, test_loader, scaler)
         except Exception as e:
             print(e)
             traceback.print_exc()
@@ -232,7 +233,7 @@ def training_setup(gpu, args):
         dist.destroy_process_group()
 
 
-def cuda_graph_training(optimizer, criterion, train_loader, args, rank, scaler=None):
+def cuda_graph_training(optimizer, criterion, train_loader, args, rank, test_loader, scaler=None):
     warmup_loader = get_warmup_loader(args, rank)
     device = get_device(args)
     use_amp = args.get('amp').get('enabled')
@@ -242,49 +243,51 @@ def cuda_graph_training(optimizer, criterion, train_loader, args, rank, scaler=N
 
     # CUDA Graphs Warming Up Iteration
 
-    s = torch.cuda.Stream()
-    s.wait_stream(torch.cuda.current_stream())
-    with torch.cuda.stream(s):
-        model = get_model(args)
-        model.train()
+    # model, input_shape, label_shape = cudagraphs.warm_up(
+    #     args=args,
+    #     criterion=criterion,
+    #     optimizer=optimizer,
+    #     scaler=scaler,
+    #     device=device,
+    #     dataloader=warmup_loader,
+    #     rank=rank,
+    #     use_amp=use_amp,
+    # )
 
-        for batch, (images, labels) in enumerate(tqdm(warmup_loader, disable=not is_main_node(rank))):
-            images = images.to(device, memory_format=get_memory_format(args))
-            labels = labels.to(device, memory_format=get_memory_format(args))
-
-            with autocast(enabled=use_amp):
-                y_pred = model(images)['out']
-                loss = criterion(y_pred, labels)
-
-            if use_amp:
-                scaler.scale(loss).backward()
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                loss.backward()
-                optimizer.step()
-
-            optimizer.zero_grad(set_to_none=True)
-
-    torch.cuda.current_stream().wait_stream(s)
+    model, input_shape, label_shape = cudagraphs.warm_up_val(
+        args=args,
+        criterion=criterion,
+        device=device,
+        dataloader=test_loader,
+        rank=rank,
+        use_amp=use_amp,
+    )
 
     # CUDA Graphs Capture
 
-    capture_input = torch.empty(images.shape, device=device)
-    capture_target = torch.empty(labels.shape, device=device)
+    # g, capture_input, capture_target = cudagraphs.capture(
+    #     input_shape=input_shape,
+    #     label_shape=label_shape,
+    #     device=device,
+    #     optimizer=optimizer,
+    #     use_amp=use_amp,
+    #     model=model,
+    #     criterion=criterion,
+    #     scaler=scaler,
+    # )
 
-    g = torch.cuda.CUDAGraph()
-    optimizer.zero_grad(set_to_none=True)
-    with torch.cuda.graph(g):
-        with autocast(enabled=use_amp):
-            capture_y_pred = model(capture_input)['out']
-            capture_loss = criterion(capture_y_pred, capture_target)
+    g, capture_input, capture_target, capture_stats = cudagraphs.capture_val(
+        input_shape=input_shape,
+        label_shape=label_shape,
+        device=device,
+        optimizer=optimizer,
+        use_amp=use_amp,
+        model=model,
+        criterion=criterion,
+        args=args,
+    )
 
-        if use_amp:
-            scaler.scale(capture_loss).backward()
-        else:
-            capture_loss.backward()
-            optimizer.step()
+    return
 
     if is_main_node(rank):
         print("\nTraining")
@@ -292,14 +295,19 @@ def cuda_graph_training(optimizer, criterion, train_loader, args, rank, scaler=N
     # Training on real data
 
     start = time.time()
-    for epoch in range(args.get('hyper-params').get('epochs')):
-        for batch, (images, labels) in enumerate(tqdm(train_loader, disable=not is_main_node(rank))):
-            capture_input.copy_(images)
-            capture_target.copy_(labels)
-            g.replay()
-            if use_amp:
-                scaler.step(optimizer)
-                scaler.update()
+
+    cudagraphs.train(
+        args=args,
+        optimizer=optimizer,
+        train_loader=train_loader,
+        rank=rank,
+        capture_input=capture_input,
+        capture_target=capture_target,
+        g=g,
+        use_amp=use_amp,
+        scaler=scaler,
+    )
+
     end = time.time()
 
     if is_main_node(rank):
@@ -317,7 +325,8 @@ def main():
     print(f'GPU available: {torch.cuda.is_available()} ({torch.cuda.device_count()})')
 
     if args.get('cuda-graphs').get('enabled'):
-        assert args.get('distributed').get('enabled'), "Configuration Error: CUDA graphs requires Distributed to be enabled"
+        assert args.get('distributed').get(
+            'enabled'), "Configuration Error: CUDA graphs requires Distributed to be enabled"
 
     torch.cuda.empty_cache()
 
