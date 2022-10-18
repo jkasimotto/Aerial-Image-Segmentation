@@ -1,5 +1,5 @@
 import copy
-
+import time
 import torch
 from tqdm import tqdm
 from torch.cuda.amp import autocast
@@ -40,6 +40,8 @@ def run(args, model, criterion, optimizer, warmup_loader, train_loader, scaler, 
     if is_main_node(rank):
         print("\nTraining")
 
+    start = time.time()
+
     _train(
         args=args,
         optimizer=optimizer,
@@ -50,6 +52,11 @@ def run(args, model, criterion, optimizer, warmup_loader, train_loader, scaler, 
         g=g,
         scaler=scaler,
     )
+    
+    end = time.time()
+
+    if is_main_node(rank):
+        print(f"\nTraining took: {end - start:.2f}s")
 
     return model
 
