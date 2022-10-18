@@ -50,13 +50,17 @@ def run(args, criterion, optimizer, warmup_loader, train_loader, scaler, device,
 
 
 def _warm_up(args, criterion, optimizer, scaler, device, dataloader, rank, use_amp):
+    warmup_iters = args.get('cuda-graphs').get('warmup-iters')
     s = torch.cuda.Stream()
     s.wait_stream(torch.cuda.current_stream())
     with torch.cuda.stream(s):
         model = get_model(args)
         model.train()
 
-        for batch, (images, labels) in enumerate(tqdm(dataloader, disable=not is_main_node(rank))):
+        for batch, (images, labels) in enumerate(tqdm(dataloader, total=warmup_iters, disable=not is_main_node(rank))):
+            if batch == warmup_iters:
+                break
+
             images = images.to(device, memory_format=get_memory_format(args))
             labels = labels.to(device, memory_format=get_memory_format(args))
 

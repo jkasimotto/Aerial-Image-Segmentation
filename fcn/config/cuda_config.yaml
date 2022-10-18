@@ -1,14 +1,14 @@
 config:
   run: Cuda-graphs
-  data-dir: /home/usyd-04a/synthetic/
+  data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/fcn
   classes: 2
 
 hyper-params:
-  batch-size: 16
+  batch-size: 48
   learning-rate: 0.0001
   epochs: 1
-  workers: 6
+  workers: 2
 
 amp:
   enabled: False
@@ -17,18 +17,15 @@ channels-last:
   enabled: False
 
 distributed:
-  enabled: False
+  enabled: True
   nodes: 1
   ip-address: localhost
   ngpus: null
   local-ranks: 0
 
 cuda-graphs:
-  enabled: False
-  warmup-iters: 1
-
-meProp:
-  enabled: False
+  enabled: True
+  warmup-iters: 15
 
 wandb:
   enabled: False
