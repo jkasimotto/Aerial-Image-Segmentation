@@ -6,11 +6,11 @@ import torch
 import os
 from dataset import PlanesDataset
 from torch.utils.data import DataLoader
-from model2 import UNET
 from torch.nn.parallel import DistributedDataParallel as DDP, DataParallel as DP
 import torch.distributed as dist
 import numpy
 import random
+from model import UNET
 
 def is_main_node(rank):
     return rank is None or rank == 0
