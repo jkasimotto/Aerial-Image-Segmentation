@@ -11,6 +11,8 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 from torch import nn
 from PIL import Image
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 
 def show(images):
@@ -24,6 +26,13 @@ def show(images):
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
     plt.show()
 
+def augmentations():
+    return A.Compose([
+        A.Normalize(
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5],
+        ),
+        ToTensorV2()])
 
 def command_line_args():
     parser = argparse.ArgumentParser()
@@ -63,7 +72,10 @@ def main():
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
         image = read_image(img_path, mode=ImageReadMode.RGB) * normalisation_factor
+        transforms = augmentations()
+        image = transforms(image=np.array(image))['image']
         image = image.float().unsqueeze(0)
+       
         
         # Get mask prediction for model
         with torch.inference_mode():
