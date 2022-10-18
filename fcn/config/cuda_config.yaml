@@ -11,13 +11,13 @@ hyper-params:
   workers: 6
 
 amp:
-  enabled: True
+  enabled: False
 
 channels-last:
   enabled: False
 
 distributed:
-  enabled: True
+  enabled: False
   nodes: 1
   ip-address: localhost
   ngpus: null
