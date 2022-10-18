@@ -20,6 +20,8 @@ from torch.utils.data import DataLoader
 
 from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 
+import wandb
+
 def collate_fn(batch):
     return tuple(zip(*batch))
 
@@ -229,6 +231,14 @@ def main():
                 dataloader=test_loader,
                 device=device,
                 num_classes=HYPER_PARAMS['NUM_CLASSES'])
+        
+        if args.get('wandb').get('enabled'):
+            wandb.log({
+                'train_loss': train_epoch_loss,
+                "val_loss": train_epoch_loss,
+                "mIoU": epoch_iou,
+                "dice": epoch_dice,
+            })
 
         # update the learning rate
         scheduler.step()
