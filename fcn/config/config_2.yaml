@@ -1,5 +1,5 @@
 config:
-  run: Cuda-graphs
+  run: No-Cuda-Graphs-CL
   data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/fcn
   classes: 2
@@ -7,14 +7,14 @@ config:
 hyper-params:
   batch-size: 48
   learning-rate: 0.0001
-  epochs: 1
-  workers: 2
+  epochs: 10
+  workers: 4
 
 amp:
-  enabled: True
+  enabled: False
 
 channels-last:
-  enabled: False
+  enabled: True
 
 distributed:
   enabled: True
@@ -24,9 +24,9 @@ distributed:
   local-ranks: 0
 
 cuda-graphs:
-  enabled: True
+  enabled: False
   warmup-iters: 15
 
 wandb:
-  enabled: False
-  project-name: FCN-Benchmark
+  enabled: True
+  project-name: FCN-Cuda-Graphs-Benchmark

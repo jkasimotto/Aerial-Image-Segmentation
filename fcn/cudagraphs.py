@@ -52,7 +52,7 @@ def run(args, model, criterion, optimizer, warmup_loader, train_loader, scaler, 
         g=g,
         scaler=scaler,
     )
-    
+
     end = time.time()
 
     if is_main_node(rank):
