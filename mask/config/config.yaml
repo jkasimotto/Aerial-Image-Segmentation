@@ -1,0 +1,32 @@
+config:
+  run: Mask-alb
+  data-dir: /home/usyd-04a/synthetic/
+  checkpoint-dir: /home/usyd-04a/checkpoints/mask
+  classes: 2
+
+hyper-params:
+  batch-size: 16
+  learning-rate: 0.0001
+  epochs: 1
+  workers: 4
+
+amp:
+  enabled: True
+
+channels-last:
+  enabled: False
+
+distributed:
+  enabled: True
+  nodes: 1
+  ip-address: localhost
+  ngpus: null
+  local-ranks: 0
+
+cuda-graphs:
+  enabled: False
+  warmup-iters: 1
+
+wandb:
+  enabled: False
+  project-name: Mask-Test
