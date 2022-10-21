@@ -210,11 +210,6 @@ def get_warmup_loader(args, rank):
 
     hyper_params = args.get('hyper-params')
 
-    # sampler = torch.utils.data.RandomSampler(
-    #     train_dataset,
-    #     num_samples=hyper_params.get('batch-size') * args.get('cuda-graphs').get('warmup-iters')
-    # )
-
     sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=dist_args.get('world-size'), rank=rank,
     )

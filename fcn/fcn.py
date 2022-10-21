@@ -12,7 +12,6 @@ from utils import (
     get_model,
     dist_env_setup,
     dist_process_setup,
-    get_device,
     get_warmup_loader,
 )
 import traceback
@@ -56,26 +55,29 @@ def training_setup(gpu, args):
 
     # Run CUDA graphs training if enabled
     if args.get('cuda-graphs').get('enabled'):
-        device = get_device(args)
-        use_amp = args.get('amp').get('enabled')
         warmup_loader = get_warmup_loader(args, rank)
         try:
-            cudagraphs.run(args, criterion, optimizer, warmup_loader, train_loader, scaler, device, rank, use_amp)
+            model = cudagraphs.run(
+                args=args,
+                model=model,
+                criterion=criterion,
+                optimizer=optimizer,
+                warmup_loader=warmup_loader,
+                train_loader=train_loader,
+                scaler=scaler,
+                rank=rank)
         except:
             traceback.print_exc()
-            dist.destroy_process_group()
-        return
-
-    # Training loop
-    model = engine.train(model=model,
-                         criterion=criterion,
-                         optimizer=optimizer,
-                         train_loader=train_loader,
-                         test_loader=test_loader,
-                         scaler=scaler,
-                         analyser=analyser,
-                         args=args,
-                         rank=rank)
+    else:
+        model = engine.train(model=model,
+                             criterion=criterion,
+                             optimizer=optimizer,
+                             train_loader=train_loader,
+                             test_loader=test_loader,
+                             scaler=scaler,
+                             analyser=analyser,
+                             args=args,
+                             rank=rank)
 
     if is_main_node(rank):
         analyser.save_model(model=model,

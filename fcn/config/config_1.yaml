@@ -1,24 +1,32 @@
 config:
-  run: AMP-CL-DDP
+  run: No-Cuda-Graphs
   data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/fcn
   classes: 2
-  amp: True
-  channels-last: True
-  distributed: True
 
 hyper-params:
-  batch-size: 64
+  batch-size: 48
   learning-rate: 0.0001
   epochs: 10
   workers: 4
 
+amp:
+  enabled: False
+
+channels-last:
+  enabled: False
+
 distributed:
+  enabled: True
   nodes: 1
   ip-address: localhost
   ngpus: null
   local-ranks: 0
 
+cuda-graphs:
+  enabled: False
+  warmup-iters: 15
+
 wandb:
   enabled: True
-  project-name: FCN-Benchmark
+  project-name: FCN-Cuda-Graphs-Benchmark
