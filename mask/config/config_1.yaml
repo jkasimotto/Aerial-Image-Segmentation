@@ -1,20 +1,20 @@
 config:
-  run: Cuda-graphs
+  run: AMP-CL-DDP
   data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
-  checkpoint-dir: /home/usyd-04a/checkpoints/fcn
+  checkpoint-dir: /home/usyd-04a/checkpoints/mask
   classes: 2
 
 hyper-params:
-  batch-size: 48
+  batch-size: 64
   learning-rate: 0.0001
-  epochs: 1
-  workers: 2
+  epochs: 10
+  workers: 4
 
 amp:
-  enabled: False
+  enabled: True
 
 channels-last:
-  enabled: False
+  enabled: True
 
 distributed:
   enabled: True
@@ -24,9 +24,9 @@ distributed:
   local-ranks: 0
 
 cuda-graphs:
-  enabled: True
-  warmup-iters: 15
+  enabled: False
+  warmup-iters: 1
 
 wandb:
-  enabled: False
-  project-name: FCN-Benchmark
+  enabled: True
+  project-name: Mask-Benchmark

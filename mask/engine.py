@@ -113,6 +113,8 @@ def train_one_epoch(model, optimizer, scaler, dataloader, args, rank):
 
 @torch.inference_mode()
 def evaluate(model, data_loader, args, rank):
+    n_threads = torch.get_num_threads()
+    torch.set_num_threads(1)
     device = get_device(args)
     cpu_device = torch.device("cpu")
     model.eval()
@@ -153,5 +155,7 @@ def evaluate(model, data_loader, args, rank):
 
     if is_main_node(rank):
         print(f"Accuracy: mIoU= {iou * 100:.3f}%")
+
+    torch.set_num_threads(n_threads)
 
     return iou
