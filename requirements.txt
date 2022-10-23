@@ -28,7 +28,7 @@ boto3==1.24.60
 # https://pypi.org/project/boto3/
 
 botocore==1.27.60
-https://pypi.org/project/botocore/
+# https://pypi.org/project/botocore/
 
 wandb==0.13.2
 # https://pypi.org/project/wandb/
