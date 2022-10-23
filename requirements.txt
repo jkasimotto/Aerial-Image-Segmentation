@@ -1,17 +1,46 @@
 numpy==1.23.0
 --extra-index-url https://download.pytorch.org/whl/cu116
+# https://pypi.org/project/numpy/
+
 torch==1.12.1
 --extra-index-url https://download.pytorch.org/whl/cu116
+# https://pypi.org/project/torch/
+
 torchvision==0.13.1
+# https://pypi.org/project/torchvision/
+
 Pillow==9.2.0
+# https://pypi.org/project/Pillow/
+
 tqdm==4.64.0
+# https://pypi.org/project/tqdm/
+
 matplotlib==3.5.3
+# https://pypi.org/project/matplotlib/
+
 torchmetrics==0.9.3
+# https://pypi.org/project/torchmetrics/
+
 pandas==1.4.3
+# https://pypi.org/project/pandas/
+
 boto3==1.24.60
+# https://pypi.org/project/boto3/
+
 botocore==1.27.60
+https://pypi.org/project/botocore/
+
 wandb==0.13.2
+# https://pypi.org/project/wandb/
+
 timm==0.6.7
+# https://pypi.org/project/timm/
+
 albumentations==1.2.1
+# https://pypi.org/project/albumentations/
+
 pyyaml==6.0
+# https://pypi.org/project/PyYAML/
+
 pycocotools==2.0.5
+# https://pypi.org/project/pycocotools/
