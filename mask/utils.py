@@ -9,7 +9,7 @@ from dataset import PlanesDataset
 import transforms as T
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
-from torchvision.models.detection import maskrcnn_resnet50_fpn
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2
 from torch.nn.parallel import DistributedDataParallel as DDP, DataParallel as DP
 
 
@@ -20,12 +20,12 @@ def is_main_node(rank):
 def get_model(args):
     if args.get('distributed').get('enabled'):
         dist_args = args.get('distributed')
-        model = maskrcnn_resnet50_fpn(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
+        model = maskrcnn_resnet50_fpn_v2(num_classes=args.get('config').get('classes')).cuda(dist_args.get('gpu'))
         model = DDP(model, device_ids=[dist_args.get('gpu')])
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         device_ids = [0]
-        model = maskrcnn_resnet50_fpn(num_classes=args.get('config').get('classes')).to(device)
+        model = maskrcnn_resnet50_fpn_v2(num_classes=args.get('config').get('classes')).to(device)
         model = DP(model, device_ids=device_ids)
 
     model = model.to(memory_format=get_memory_format(args))

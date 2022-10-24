@@ -47,14 +47,18 @@ def training_setup(gpu, args):
     if args.get('amp').get('enabled'):
         scaler = GradScaler()
 
-    model = engine.train(model=model,
-                         optimizer=optimizer,
-                         train_loader=train_loader,
-                         test_loader=test_loader,
-                         scaler=scaler,
-                         analyser=analyser,
-                         args=args,
-                         rank=rank)
+    try:
+        model = engine.train(model=model,
+                             optimizer=optimizer,
+                             train_loader=train_loader,
+                             test_loader=test_loader,
+                             scaler=scaler,
+                             analyser=analyser,
+                             args=args,
+                             rank=rank)
+    except:
+        dist.destroy_process_group()
+        return
 
     if is_main_node(rank):
         analyser.save_model(model=model,
@@ -66,7 +70,6 @@ def training_setup(gpu, args):
     # Clean up distributed process
     if args.get('distributed').get('enabled'):
         dist.destroy_process_group()
-
 
 
 def main():
