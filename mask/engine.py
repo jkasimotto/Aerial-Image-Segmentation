@@ -10,7 +10,6 @@ from tqdm import tqdm
 from utils import is_main_node, get_device
 from coco_eval import CocoEvaluator
 from coco_utils import get_coco_api_from_dataset
-from logger import MetricLogger
 
 
 def train(model, optimizer, train_loader, test_loader, analyser, args, scaler=None, rank=None):
@@ -118,7 +117,6 @@ def evaluate(model, data_loader, args, rank):
     device = get_device(args)
     cpu_device = torch.device("cpu")
     model.eval()
-    metric_logger = MetricLogger(delimiter="  ")
 
     with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
         coco = get_coco_api_from_dataset(data_loader.dataset)
@@ -130,20 +128,14 @@ def evaluate(model, data_loader, args, rank):
 
         if torch.cuda.is_available():
             torch.cuda.synchronize()
-        model_time = time.time()
         outputs = model(images)
 
         outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
-        model_time = time.time() - model_time
 
         res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
-        evaluator_time = time.time()
         coco_evaluator.update(res)
-        evaluator_time = time.time() - evaluator_time
-        metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
 
     # gather the stats from all processes
-    metric_logger.synchronize_between_processes()
     coco_evaluator.synchronize_between_processes()
 
     # accumulate predictions from all images
