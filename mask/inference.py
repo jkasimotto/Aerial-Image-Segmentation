@@ -1,7 +1,7 @@
 import torch
 from torchvision.io import read_image, ImageReadMode
 from torchvision.utils import draw_segmentation_masks, make_grid
-from torchvision.models.detection import maskrcnn_resnet50_fpn as MaskRCNN
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as MaskRCNN
 import argparse
 import os
 import numpy as np
