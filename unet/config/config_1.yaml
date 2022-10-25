@@ -1,17 +1,17 @@
 config:
   run: Unet-demo
-  data-dir: /home/usyd-04a/synthetic/
+  data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/unet
   classes: 2
 
 hyper-params:
-  batch-size: 48
+  batch-size: 64
   learning-rate: 0.0001
-  epochs: 10
+  epochs: 3
   workers: 4
 
 amp:
-  enabled: False
+  enabled: True
 
 channels-last:
   enabled: False
@@ -28,5 +28,5 @@ cuda-graphs:
   warmup-iters: 15
 
 wandb:
-  enabled: True
+  enabled: False
   project-name: Unet-Demo

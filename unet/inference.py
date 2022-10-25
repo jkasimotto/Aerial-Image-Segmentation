@@ -28,6 +28,7 @@ def main():
     parser.add_argument("model", help="checkpoint file for pretrained model")
     parser.add_argument(
         "image_dir", help="path to directory containing images to run through the model")
+    parser.add_argument("prediction_dir", help="path to directory to save predictions made by the model")
     parser.add_argument("-i", "--index", type=int)
     args = parser.parse_args()
 
@@ -67,10 +68,9 @@ def main():
 
     print("Saving predictions ...\n")
     # Save the predictions to specified directory
-    os.mkdir('./inference_images')
     for i, prediction in enumerate(masked_images):
         prediction = f.to_pil_image(prediction)
-        prediction.save(os.path.join("./inference_images", f"prediction_{i}.png"))
+        prediction.save(os.path.join(args.prediction_dir, f"prediction_{i}.png"))
 
 
 if __name__ == "__main__":
