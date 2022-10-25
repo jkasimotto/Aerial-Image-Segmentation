@@ -48,6 +48,7 @@ def main():
 
     model.eval()
     masked_images = []
+    print("Making predictions ...\n")
     for filename in os.listdir(args.image_dir)[start: end]:
         # Get image and convert to required format
         img_path = os.path.join(args.image_dir, filename)
