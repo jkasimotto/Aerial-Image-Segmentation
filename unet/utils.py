@@ -12,12 +12,13 @@ import numpy
 import random
 from model import UNET
 
+
 def is_main_node(rank):
     return rank is None or rank == 0
 
 
 def get_model(args):
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         dist_args = args.get('distributed')
         model = UNET(in_channels=3, out_channels=1).cuda(dist_args.get('gpu'))
         model = DDP(model, device_ids=[dist_args.get('gpu')])
@@ -31,15 +32,16 @@ def get_model(args):
 
     return model
 
+
 def get_memory_format(args):
-    if args.get('config').get('channels-last'):
+    if args.get('channels-last').get('enabled'):
         return torch.channels_last
     else:
         return torch.contiguous_format
 
 
 def get_device(args):
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         gpu = args.get('distributed').get('gpu')
         device = f'cuda:{gpu}'
     else:
@@ -85,6 +87,7 @@ def _command_line_args():
     args = parser.parse_args()
     return args
 
+
 def _augmentations():
     # Augmentations to training set
     train_transforms = A.Compose([
@@ -108,6 +111,7 @@ def _augmentations():
         ToTensorV2()])
 
     return train_transforms, test_transforms
+
 
 def _collate_fn(batch):
     images, labels = [], []
@@ -153,7 +157,7 @@ def get_data_loaders(args, rank=None):
     dist_args, hyper_params = args.get('distributed'), args.get('hyper-params')
 
     train_sampler, test_sampler, batch_size = None, None, hyper_params.get('batch-size')
-    if args.get('config').get('distributed'):
+    if args.get('distributed').get('enabled'):
         train_sampler = torch.utils.data.distributed.DistributedSampler(
             train_dataset, num_replicas=dist_args.get('world-size'), rank=rank
         )
@@ -188,59 +192,3 @@ def get_data_loaders(args, rank=None):
     )
 
     return train_loader, test_loader
-
-
-
-
-# def get_loaders(
-#     train_dir,
-#     train_maskdir,
-#     val_dir,
-#     val_maskdir,
-#     batch_size,
-#     train_transform,
-#     val_transform,
-#     num_gpus,
-#     rank,
-#     num_workers=4,
-#     pin_memory=True,
-# ):
-#     train_ds = PlanesDataset(
-#         img_dir=train_dir,
-#         mask_dir=train_maskdir,
-#         transform=train_transform
-#     )
-
-#     train_sampler = torch.utils.data.distributed.DistributedSampler(
-#         train_ds, num_replicas=num_gpus, rank=rank
-#     )
-
-#     train_loader = DataLoader(
-#         train_ds,
-#         batch_size=batch_size,
-#         num_workers=num_workers,
-#         pin_memory=pin_memory,
-#         shuffle=False,
-#         sampler=train_sampler
-#     )
-
-#     val_ds = PlanesDataset(
-#         img_dir=val_dir,
-#         mask_dir=val_maskdir,
-#         transform=val_transform
-#     )
-
-#     test_sampler = torch.utils.data.distributed.DistributedSampler(
-#         val_ds, num_replicas=num_gpus, rank=rank
-#     )
-
-#     val_loader = DataLoader(
-#         val_ds,
-#         batch_size=batch_size,
-#         num_workers=num_workers,
-#         pin_memory=pin_memory,
-#         shuffle=False,
-#         sampler=test_sampler
-#     )
-
-#     return train_loader, val_loader

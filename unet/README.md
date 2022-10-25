@@ -22,40 +22,63 @@ path/to/dir
 
 ### Usage
 ```commandline
-usage: unet.py [-h] [-b BATCH_SIZE] [-lr LEARNING_RATE] [-e EPOCHS] [-w WORKERS] [-n NUM_CLASSES] [-u USE_WANDB] data_dir
+usage: unet.py [-h] config_file
 
 positional arguments:
-  data_dir              path to directory containing test and train images
+  config_file  path to config file
 
 options:
-  -h, --help            show this help message and exit
-  -b BATCH_SIZE, --batch-size BATCH_SIZE
-                        dataloader batch size
-                        default=16
-  -lr LEARNING_RATE, --learning-rate LEARNING_RATE
-                        learning rate to be applied to the model
-                        default=0.001
-  -e EPOCHS, --epochs EPOCHS
-                        number of epochs to train the model for
-                        default=1
-  -w WORKERS, --workers WORKERS
-                        number of workers used in the dataloader
-                        default=2
-  -n NUM_CLASSES, --num-classes NUM_CLASSES
-                        number of classes for semantic segmentation
-                        default=2
-  -u USE_WANDB, --use-wandb USE_WANDB
-                        option to log on wandb
-
+  -h, --help   show this help message and exit
 ```
 
 Example
 ```commandline
-python unet.py -b 16 -lr 0.001 -e 2 -w 2 -n 2 /home/usyd-04a/synthetic/
+python unet.py test_config.yaml
 ```
 
+### Config File
+An example config file is provided below:
+
+```yaml
+config:
+  run: demo
+  data-dir: /home/usyd-04a/synthetic/
+  checkpoint-dir: /home/usyd-04a/checkpoints/unet
+  classes: 2
+
+hyper-params:
+  batch-size: 8
+  learning-rate: 0.0001
+  epochs: 3
+  workers: 4
+
+amp:
+  enabled: False
+
+channels-last:
+  enabled: False
+
+distributed:
+  enabled: False
+  nodes: 1
+  ip-address: localhost
+  ngpus: null
+  local-ranks: 0
+
+cuda-graphs:
+  enabled: False
+  warmup-iters: 5
+
+wandb:
+  enabled: False
+  project-name: UNET-Demo
+```
+
+The various speed up techniques such as AMP, channels last memory format and distributed data parallel can be turned on in the config file. Simply set
+the associated `enabled` field to `True`.
+
 ### Outputs
-Model checkpoints and graphs will be saved in a new `checkpoint` directory that will be created. Five outputs should be produced which include
+Model checkpoints and graphs will be saved in the `checkpoint_dir` directory. Given a run name of 'unet', five outputs should be produced which include
 the following:
 
 * 'unet_loss.pth' - model with the best validation from all epochs
@@ -67,23 +90,29 @@ the following:
 ---
 
 ## Making Predictions (Inference)
-After training the model on a dataset, predictions can bew made on a set of images using the `inference.py` script.
-This will display the original image with the plane mask overlay.
+After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
+This will produce a new image which is the original image with a plane mask overlay.
 
 ### Usage
 ```commandline
-usage: inference.py [-h] [-i INDEX] model image_dir
+usage: inference.py [-h] [-i INDEX] model image_dir prediction_dir
 
 positional arguments:
   model                 checkpoint file for pretrained model
   image_dir             path to directory containing images to run through the model
+  prediction_dir        path to directory to save predictions made by the model
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -i INDEX, --index INDEX
-
 ```
 Example
 ```commandline
-python inference.py ./checkpoints/unet_final.pth /home/usyd-04a/synthetic/test/images/
+python inference.py ./checkpoints/unet.pt /home/usyd-04a/synthetic/test/images/ ./predictions/
 ```
+```commandline
+python inference.py ./checkpoints/unet.pt /home/usyd-04a/synthetic/test/images/ ./predictions/ -i 1
+```
+
+### Output
+![Image](../assets/unet_inference.png "UNET Prediction")

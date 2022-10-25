@@ -7,11 +7,8 @@ import torch
 import torchvision.transforms.functional as f
 from torch import nn
 from torchvision.io import ImageReadMode, read_image
-from torchvision.utils import draw_segmentation_masks, make_grid
-
-# from model import UNET
-# Need to use the old model of UNET because that's what ran for 4 epochs on the SC
-from model2 import UNET
+from torchvision.utils import draw_segmentation_masks
+from model import UNET
 
 
 def show(images):
@@ -67,9 +64,6 @@ def main():
         image = image.squeeze(0).type(torch.uint8)
         image_with_mask = draw_segmentation_masks(image=image, masks=prediction, colors="red", alpha=0.5)
         masked_images.append(image_with_mask)
-
-    # grid = make_grid(masked_images)
-    # show(grid)
 
     print("Saving predictions ...\n")
     # Save the predictions to specified directory
