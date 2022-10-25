@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torchvision.transforms.functional as TF
 
 
 class NoOP(nn.Module):
@@ -98,18 +99,26 @@ class UnetDecoder(nn.Module):
 
         d5 = self.up4(e5)
 
+        if d5.shape != e4.shape:
+            d5 = TF.resize(d5, size=e4.shape[2:])
         d4 = torch.cat([e4, d5], dim=1)
         d4 = self.decoder4(d4)
         d4 = self.up3(d4)
 
+        if d4.shape != e3.shape:
+            d4 = TF.resize(d4, size=e3.shape[2:])
         d3 = torch.cat([e3, d4], dim=1)
         d3 = self.decoder3(d3)
         d3 = self.up2(d3)
 
+        if d3.shape != e2.shape:
+            d3 = TF.resize(d3, size=e2.shape[2:])
         d2 = torch.cat([e2, d3], dim=1)
         d2 = self.decoder2(d2)
         d2 = self.up1(d2)
 
+        if d2.shape != e1.shape:
+            d2 = TF.resize(d2, size=e1.shape[2:])
         d1 = torch.cat([e1, d2], dim=1)
         d1 = self.decoder1(d1)
         d1 = self.final(d1)
