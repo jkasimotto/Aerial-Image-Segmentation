@@ -39,7 +39,6 @@ def create_mask(image, colors):
             color_idx = is_plane_color(px_color, colors)
             if color_idx is not None:
                 new_mask.putpixel((x, y), color_idx + 1)
-                # new_mask.putpixel((x, y), 255)
             else:
                 new_mask.putpixel((x, y), 0)
 
@@ -75,19 +74,6 @@ def tile_img(img, tile_size=512):
     return tiles
 
 
-def filter_tiles(img_tiles, mask_tiles):
-    filtered_img_tiles = []
-    filtered_mask_tiles = []
-    for i in range(len(mask_tiles)):
-        img_arr = np.array(mask_tiles[i])
-        n_white_pix = np.sum(img_arr > 0)
-        if n_white_pix > 0:
-            filtered_mask_tiles.append(mask_tiles[i])
-            filtered_img_tiles.append(img_tiles[i])
-
-    return filtered_img_tiles, filtered_mask_tiles
-
-
 def remove_border_planes(tiles):
     adjusted_tiles = []
     for tile in tiles:
@@ -102,6 +88,18 @@ def remove_border_planes(tiles):
         adjusted_tiles.append(Image.fromarray(new_tile))
     return adjusted_tiles
 
+
+def filter_tiles(img_tiles, mask_tiles):
+    filtered_img_tiles = []
+    filtered_mask_tiles = []
+    for i in range(len(mask_tiles)):
+        img_arr = np.array(mask_tiles[i])
+        n_white_pix = np.sum(img_arr > 0)
+        if n_white_pix > 0:
+            filtered_mask_tiles.append(mask_tiles[i])
+            filtered_img_tiles.append(img_tiles[i])
+
+    return filtered_img_tiles, filtered_mask_tiles
 
 
 def process_files(args):

@@ -23,7 +23,7 @@ performance of various semantic / instance segmentation machine learning models.
    - [x] Fully Convolutional Network (FCN)
    - [x] DeepLabV3
    - [x] UNet
-   - [x] Mask R-CNN **(Still in development)**
+   - [x] Mask R-CNN
 
 ### The Rareplanes Dataset
 The Rareplanes dataset is an open-source dataset from CosmiQ Works and AI.Reverie which incorporates
@@ -36,17 +36,28 @@ aircraft, i.e. jets and passenger planes. Our project focuses on the use of the 
 
 ## Getting Started
 ### Prerequisites
-No prerequisites are required.
-It is recommended to create a python virtual environment e.g. venv, to manage python packages.
+It is recommended to create a python virtual environment e.g. venv, to manage python packages. Steps to setup venv are provided
+below.
 ### Installation
 1. Clone the repository
-2. Install Python Packages
 
+`git clone git@bitbucket.org:ahua5289/comp3888_w08_02.git`
 
-    ```commandline
-    cd comp3888_w08_02
-    pip install -r requirements.txt
-    ```
+2. Open folder
+
+`cd comp3888_w08_02`
+
+3. Create virtual environment
+
+`python3 -m venv ./venv/`
+
+4. Activate virtual environment
+
+`source venv/bin/activate`
+
+5. Install packages
+
+`pip install -r requirements.txt`
 
 ---
 ## Usage
@@ -65,7 +76,7 @@ preprocessing can be found [here](./preprocessing)
       * [FCN](./fcn)
       * [DeepLabV3](./DeepLabV3)
       * [UNet](./unet)
-      * [Mask R-CNN](./MaskRCNN) (Still in development)
+      * [Mask R-CNN](./mask)
 
 
 4. **Visualise model inferences**. Use a trained model's checkpoint file to make predictions

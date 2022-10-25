@@ -39,8 +39,8 @@ python DeepLabV3.py config/config.yaml
 An example config file is provided below:
 ```commandline
 config:
-  run: trial
-  data-dir: /home/usyd-04a/benchmark_dataset/synthetic/
+  run: demo
+  data-dir: /home/usyd-04a/synthetic/
   checkpoint-dir: /home/usyd-04a/checkpoints/deeplab
   classes: 2
 
@@ -65,25 +65,15 @@ distributed:
 
 wandb:
   enabled: False
-  project-name: DeepLabV3-Benchmark
-```
-
-### Benchmarking
-Benchmark can be run with the config/benchmark.sh script:
-```commandline
-./config/benchmark.sh
+  project-name: DeepLabV3-Demo
 ```
 
 
 ---
 
 ## Making Predictions (Inference)
-After training the model on a dataset, predictions can bew made on a set of images using the `/DeepLabV3/inference.py` script.
+After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
 This will display the original image with the plane mask overlay.
-
-### Arguments
-* model (str) - checkpoint file for a pretrained model
-* image_dir (path) - path to a directory which contains the images which will be passed through the model
 
 ### Usage
 ```commandline

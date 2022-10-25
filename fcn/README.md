@@ -71,7 +71,7 @@ cuda-graphs:
 
 wandb:
   enabled: False
-  project-name: FCN-Benchmark
+  project-name: FCN-Demo
 ```
 
 The various speed up techniques such as AMP, channels last memory format and distributed data parallel can be turned on in the config file. Simply set

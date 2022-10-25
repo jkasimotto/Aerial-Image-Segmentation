@@ -68,8 +68,47 @@ cuda-graphs:
 
 wandb:
   enabled: False
-  project-name: Mask-Benchmark
+  project-name: Mask-Demo
 ```
 
 The various speed up techniques such as AMP, channels last memory format and distributed data parallel can be turned on in the config file. Simply set
 the associated `enabled` field to `True`.
+
+### Outputs
+Model checkpoints and graphs will be saved in the `checkpoint_dir` directory. Given a run name of 'mask', four outputs should be produced which include
+the following:
+
+* 'mask_acc.pth' - model with the best accuracy from all epochs
+* 'mask_final_epoch.pth' - model after all epochs
+* 'mask_loss.png' - graph of training loss
+* 'mask_accuracy' - graph of mIoU
+
+---
+
+## Making Predictions (Inference)
+After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
+This will produce a new image which is the original image with a plane mask overlay.
+
+### Usage
+```commandline
+usage: inference.py [-h] [-i INDEX] model image_dir prediction_dir
+
+positional arguments:
+  model                 checkpoint file for pretrained model
+  image_dir             path to directory containing images to run through the model
+  prediction_dir        path to directory to save predictions made by the model
+
+options:
+  -h, --help            show this help message and exit
+  -i INDEX, --index INDEX
+```
+Example
+```commandline
+python inference.py ./checkpoints/mask.pt /home/usyd-04a/synthetic/test/images/ ./predictions/
+```
+```commandline
+python inference.py ./checkpoints/mask.pt /home/usyd-04a/synthetic/test/images/ ./predictions/ -i 1
+```
+
+### Output
+![Image](../assets/mask_inference.png "FCN Prediction")
