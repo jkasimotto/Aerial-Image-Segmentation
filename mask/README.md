@@ -85,6 +85,21 @@ the following:
 
 ---
 
+## Benchmarks
+These benchmarks were performed using a subset of the Rareplanes dataset, approximately 5% of the total images.
+
+| AMP | Channels Last | DDP | Run 1 | Run 2 | Run 3 | Average |
+|:---:|:-------------:|:---:|-------|-------|-------|---------|
+| [X] |      [X]      | [X] | 563   | 563   | 563   | 563     |
+| [X] |               | [X] | 573   | 572   | 571   | 572     |
+|     |      [X]      | [X] | 757   | 757   | 759   | 758     |
+|     |               | [X] | 722   | 724   | 724   | 723     |
+
+
+![Image](../assets/mask_benchmark.png "Mask R-CNN benchmark graph")
+
+---
+
 ## Making Predictions (Inference)
 After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
 This will produce a new image which is the original image with a plane mask overlay.

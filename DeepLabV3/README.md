@@ -71,6 +71,25 @@ wandb:
 
 ---
 
+## Benchmarks
+These benchmarks were performed using a subset of the Rareplanes dataset, approximately 5% of the total images.
+
+| AMP | Channels Last | DDP | Run 1 | Run 2 | Run 3 | Average |
+|:---:|:-------------:|:---:|-------|-------|-------|---------|
+| [X] |      [X]      | [X] | 407   | 410   | 411   | 409     |
+| [X] |      [X]      |     | 479   | 478   | 481   | 479     |
+| [X] |               | [X] | 418   | 418   | 418   | 418     |
+| [X] |               |     | 501   | 504   | 504   | 503     |
+|     |      [X]      | [X] | 604   | 606   | 609   | 606     |
+|     |      [X]      |     | 684   | 688   | 688   | 687     |
+|     |               | [X] | 597   | 600   | 598   | 598     |
+|     |               |     | 696   | 697   | 699   | 697     |
+
+
+![Image](../assets/deeplab_benchmark.png "DeepLabV3 benchmark graph")
+
+---
+
 ## Making Predictions (Inference)
 After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
 This will display the original image with the plane mask overlay.

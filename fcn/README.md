@@ -92,16 +92,33 @@ the following:
 ## Benchmarks
 These benchmarks were performed using a subset of the Rareplanes dataset, approximately 5% of the total images.
 
-| AMP                | Channels Last      | DDP                | Run 1 | Run 2 | Run 3 | Average |
-|--------------------|--------------------|--------------------|-------|-------|-------|---------|
-| :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 377   | 379   | 380   | 379     |
-| :heavy_check_mark: | :heavy_check_mark: |                    | 416   | 416   | 419   | 417     |
-| :heavy_check_mark: |                    | :heavy_check_mark: | 366   | 368   | 369   | 368     |
-| :heavy_check_mark: |                    |                    | 446   | 445   | 444   | 445     |
-|                    | :heavy_check_mark: | :heavy_check_mark: | 560   | 560   | 561   | 560     |
-|                    | :heavy_check_mark: |                    | 633   | 635   | 634   | 634     |
-|                    |                    | :heavy_check_mark: | 531   | 531   | 531   | 531     |
-|                    |                    |                    | 637   | 637   | 637   | 637     |
+| AMP | Channels Last | DDP | Run 1 | Run 2 | Run 3 | Average |
+|:---:|:-------------:|:---:|-------|-------|-------|---------|
+| [X] |      [X]      | [X] | 377   | 379   | 380   | 379     |
+| [X] |      [X]      |     | 416   | 416   | 419   | 417     |
+| [X] |               | [X] | 366   | 368   | 369   | 368     |
+| [X] |               |     | 446   | 445   | 444   | 445     |
+|     |      [X]      | [X] | 560   | 560   | 561   | 560     |
+|     |      [X]      |     | 633   | 635   | 634   | 634     |
+|     |               | [X] | 531   | 531   | 531   | 531     |
+|     |               |     | 637   | 637   | 637   | 637     |
+
+
+![Image](../assets/fcn_benchmark.png "FCN benchmark graph")
+
+### CUDA Graphs Benchmarks
+Our CUDA graphs implementation does not have any validation per epoch thus separate
+benchmarking runs were recorded. These times exclude the initial warm up iterations
+required by CUDA graphs.
+
+| CUDA Graphs | Channels Last | DDP | Run 1 | Run 2 | Run 3 | Average |
+|:-----------:|:-------------:|:---:|-------|-------|-------|---------|
+|     [X]     |               | [X] | 412   | 415   | 415   | 414     |
+|     [X]     |      [X]      | [X] | 464   | 463   | 463   | 463     |
+|             |               | [X] | 428   | 431   | 432   | 430     |
+|             |      [X]      | [X] | 484   | 484   | 484   | 484     |
+
+---
 
 ## Making Predictions (Inference)
 After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
