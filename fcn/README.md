@@ -89,6 +89,20 @@ the following:
 
 ---
 
+## Benchmarks
+These benchmarks were performed using a subset of the Rareplanes dataset, approximately 5% of the total images.
+
+| AMP                | Channels Last      | DDP                | Run 1 | Run 2 | Run 3 | Average |
+|--------------------|--------------------|--------------------|-------|-------|-------|---------|
+| :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 377   | 379   | 380   | 379     |
+| :heavy_check_mark: | :heavy_check_mark: |                    | 416   | 416   | 419   | 417     |
+| :heavy_check_mark: |                    | :heavy_check_mark: | 366   | 368   | 369   | 368     |
+| :heavy_check_mark: |                    |                    | 446   | 445   | 444   | 445     |
+|                    | :heavy_check_mark: | :heavy_check_mark: | 560   | 560   | 561   | 560     |
+|                    | :heavy_check_mark: |                    | 633   | 635   | 634   | 634     |
+|                    |                    | :heavy_check_mark: | 531   | 531   | 531   | 531     |
+|                    |                    |                    | 637   | 637   | 637   | 637     |
+
 ## Making Predictions (Inference)
 After training the model on a dataset, predictions can be made on a set of images using the `inference.py` script.
 This will produce a new image which is the original image with a plane mask overlay.

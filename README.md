@@ -81,3 +81,75 @@ preprocessing can be found [here](./preprocessing)
 
 4. **Visualise model inferences**. Use a trained model's checkpoint file to make predictions
 on a set of images and view the results. Instructions for each model's inference can be found in the links above.
+
+---
+## Speed Up Techniques
+This project aims to explore various speed up techniques and their effectiveness on
+different models. Also, the combinations of different techniques are investigated.
+The optimisations used in this project are AMP, DDP, Channels Last, and CUDA graphs.
+
+### Automatic Mixed Precision (AMP)
+
+[CUDA Automatic Mixed Precision examples](https://pytorch.org/docs/stable/notes/amp_examples.html#working-with-multiple-gpus)
+
+PyTorch provides convenience methods for mixed precision, where some operations use the torch.float32 (float) 
+datatype and other operations use lower precision floating point datatype (lower_precision_fp): torch.float16 
+(half) or torch.bfloat16. Some ops, like linear layers and convolutions, are much faster in lower_precision_fp. 
+Other ops, like reductions, often require the dynamic range of float32. Mixed precision tries to match each op to 
+its appropriate datatype.
+
+AMP can be enabled on the following models:
+
+   - [x] FCN
+   - [x] DeepLabV3
+   - [x] UNet
+   - [x] Mask R-CNN
+
+### Distributed Data Parallel (DDP)
+
+[Getting Started with Distributed Data Parallel](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html)
+
+DistributedDataParallel (DDP) implements data parallelism at the module level which can run across multiple 
+machines. Applications using DDP should spawn multiple processes and create a single DDP instance per process. 
+DDP uses collective communications in the torch.distributed package to synchronize gradients and buffers. 
+
+DDP can be enabled on the following models:
+
+   - [x] FCN
+   - [x] DeepLabV3
+   - [x] UNet
+   - [x] Mask R-CNN (has to be enabled for multi GPU support)
+
+### Channels Last Memory Format
+
+[(beta) Channels Last Memory Format in PyTorch](https://pytorch.org/tutorials/intermediate/memory_format_tutorial.html)
+
+Channels last memory format is an alternative way of ordering NCHW tensors in memory preserving dimensions ordering. 
+Channels last tensors ordered in such a way that channels become the densest 
+dimension (aka storing images pixel-per-pixel).
+
+Channels last can be enabled on the following models:
+
+   - [x] FCN
+   - [x] DeepLabV3
+   - [x] UNet
+   - [x] Mask R-CNN
+
+### CUDA Graphs
+
+[Accelerating PyTorch with CUDA Graphs](https://pytorch.org/blog/accelerating-pytorch-with-cuda-graphs/)
+
+CUDA Graphs lets a series of CUDA kernels to be defined and encapsulated as a single unit, i.e., a graph of operations, 
+rather than a sequence of individually-launched operations. It provides a mechanism to launch multiple GPU operations 
+through a single CPU operation, and hence reduces the launching overheads.
+
+CUDA Graphs can be enabled on the following models:
+
+   - [x] FCN
+
+### Benchmarks
+
+![Image](assets/fcn_benchmark.png "FCN benchmark graph") 
+![Image](assets/deeplab_benchmark.png "DeepLabV3 benchmark graph")
+![Image](assets/unet_benchmark.png "UNet benchmark graph")
+![Image](assets/mask_benchmark.png "Mask R-CNN benchmark graph")
