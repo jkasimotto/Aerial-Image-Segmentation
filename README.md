@@ -11,6 +11,12 @@ USYD-04A / COMP3888_W08_02
       * [Prerequisites](#markdown-header-prerequisites)
       * [Installation](#markdown-header-installation)
 3. [Usage](#markdown-header-usage)
+4. [Speed Up Techniques](#markdown-header-speed-up-techniques)
+      * [Automatic Mixed Precision (AMP)](#markdown-header-automatic-mixed-precision-(amp))
+      * [Distributed Data Parallel (DDP)](#markdown-header-distributed-data-parallel-(ddp))
+      * [Channels Last Memory Format](#markdown-header-channels-last-memory-format)
+      * [CUDA Graphs](#markdown-header-cuda-graphs)
+      * [Benchmarks](#markdown-header-benchmarks)
 
 ---
 
