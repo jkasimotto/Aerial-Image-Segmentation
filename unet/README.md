@@ -1,7 +1,6 @@
 # U-Net
 This model is based on the paper
-[U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/abs/1505.04597).
-
+[U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/abs/1505.04597) and the YouTube tutorial [U-Net from Scratch with PyTorch Image Segmentation](https://youtu.be/IHq1t7NxS8k)
 ---
 
 ## Training The Model

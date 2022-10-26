@@ -5,9 +5,9 @@ config:
   classes: 2
 
 hyper-params:
-  batch-size: 64
+  batch-size: 16
   learning-rate: 0.0001
-  epochs: 3
+  epochs: 5
   workers: 4
 
 amp:
